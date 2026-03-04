@@ -20,7 +20,7 @@ const GameHeader = ({ timeLeft, currentPhase, gameState }: GameHeaderProps) => {
     <header className="fixed top-0 left-0 right-0 z-40 bg-background/95 backdrop-blur border-b border-primary/20">
       <div className="container max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-lg">🔐</span>
+          <span className="text-lg"></span>
           <span className="font-bold text-sm md:text-base text-foreground text-glow-green tracking-wider">
             CONEXÃO PERDIDA
           </span>

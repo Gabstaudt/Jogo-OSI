@@ -11,7 +11,7 @@ const StartScreen = ({ onStart }: StartScreenProps) => {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="max-w-2xl w-full animate-fade-in-up">
         <div className="text-center mb-10">
-          <div className="text-6xl mb-4">🔐</div>
+          <div className="text-6xl mb-4"></div>
           <h1 className="text-3xl md:text-5xl font-bold text-foreground text-glow-green tracking-wider mb-2">
             CONEXÃO PERDIDA
           </h1>
@@ -34,7 +34,7 @@ const StartScreen = ({ onStart }: StartScreenProps) => {
             <span>⏱</span>
             <span>Tempo limite: 30 minutos</span>
             <span className="mx-2">|</span>
-            <span>📡</span>
+            <span></span>
             <span>7 camadas para restaurar</span>
           </div>
         </div>

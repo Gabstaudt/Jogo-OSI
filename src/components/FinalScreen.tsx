@@ -74,7 +74,7 @@ const FinalScreen = ({ totalTime, onRestart }: FinalScreenProps) => {
           onClick={onRestart}
           className="px-8 py-3 bg-secondary text-secondary-foreground rounded-md font-bold text-sm tracking-wider hover:shadow-[0_0_20px_hsl(245_100%_69%/0.3)] transition-all"
         >
-          🔄 JOGAR NOVAMENTE
+           JOGAR NOVAMENTE
         </button>
       </div>
     </div>

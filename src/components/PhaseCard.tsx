@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { Phase } from "@/data/phases";
 import DragOrder from "@/components/DragOrder";
 
@@ -7,14 +7,14 @@ interface PhaseCardProps {
   onComplete: () => void;
 }
 
+const DEFAULT_MODAL_POSITION = { x: 80, y: 120 };
+
 const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
   const [answer, setAnswer] = useState("");
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [dragOrder, setDragOrder] = useState<string[]>(() => {
-    if (phase.enigmaType === 'drag-order' && Array.isArray(phase.correctAnswer)) {
-      // Shuffle
+    if (phase.enigmaType === "drag-order" && Array.isArray(phase.correctAnswer)) {
       const shuffled = [...phase.correctAnswer].sort(() => Math.random() - 0.5);
-      // Make sure it's not already correct
       if (JSON.stringify(shuffled) === JSON.stringify(phase.correctAnswer)) {
         return [...shuffled].reverse();
       }
@@ -26,17 +26,61 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
   const [showHint, setShowHint] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showReferenceModal, setShowReferenceModal] = useState(false);
+  const [isDraggingModal, setIsDraggingModal] = useState(false);
+  const [modalPosition, setModalPosition] = useState(DEFAULT_MODAL_POSITION);
+  const modalDragOffset = useRef({ x: 0, y: 0 });
 
-  const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+  const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+
+  useEffect(() => {
+    setShowReferenceModal(false);
+    setIsDraggingModal(false);
+    setModalPosition(DEFAULT_MODAL_POSITION);
+  }, [phase.layer]);
+
+  useEffect(() => {
+    if (!isDraggingModal) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      setModalPosition({
+        x: Math.max(16, event.clientX - modalDragOffset.current.x),
+        y: Math.max(16, event.clientY - modalDragOffset.current.y),
+      });
+    };
+
+    const handlePointerUp = () => {
+      setIsDraggingModal(false);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [isDraggingModal]);
+
+  const handleModalDragStart = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      modalDragOffset.current = {
+        x: event.clientX - modalPosition.x,
+        y: event.clientY - modalPosition.y,
+      };
+      setIsDraggingModal(true);
+    },
+    [modalPosition]
+  );
 
   const checkAnswer = useCallback(() => {
     let correct = false;
 
-    if (phase.enigmaType === 'text') {
+    if (phase.enigmaType === "text") {
       correct = normalize(answer) === normalize(String(phase.correctAnswer));
-    } else if (phase.enigmaType === 'multiple-choice') {
+    } else if (phase.enigmaType === "multiple-choice") {
       correct = selectedOption === phase.correctAnswer;
-    } else if (phase.enigmaType === 'drag-order') {
+    } else if (phase.enigmaType === "drag-order") {
       correct = JSON.stringify(dragOrder) === JSON.stringify(phase.correctAnswer);
     }
 
@@ -44,13 +88,12 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
       setShowExplanation(true);
       setErrorMessage("");
     } else {
-      setErrorMessage("❌ Resposta incorreta. Tente novamente!");
+      setErrorMessage(" Resposta incorreta. Tente novamente!");
       setIsShaking(true);
       setTimeout(() => setIsShaking(false), 500);
     }
   }, [answer, selectedOption, dragOrder, phase]);
 
-  // Frame table for layer 2
   const renderEthernetFrame = () => (
     <div className="overflow-x-auto mb-4">
       <table className="w-full text-xs border border-primary/30">
@@ -78,136 +121,163 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
   );
 
   return (
-    <div className={`animate-fade-in-up ${isShaking ? 'animate-shake' : ''}`}>
-      {/* Badge */}
-      <div className="flex items-center gap-3 mb-4">
-        <span
-          className="px-3 py-1 rounded-full text-xs font-bold tracking-wider"
-          style={{ backgroundColor: phase.badgeColor + '22', color: phase.badgeColor, border: `1px solid ${phase.badgeColor}44` }}
-        >
-          {phase.icon} CAMADA {phase.layer} — {phase.name.toUpperCase()}
-        </span>
-      </div>
-
-      {/* Protocols */}
-      <p className="text-muted-foreground text-xs mb-6 tracking-wide">
-        Protocolos: {phase.protocols}
-      </p>
-
-      {/* Main card */}
-      <div className="bg-card border border-primary/20 rounded-lg p-6 border-glow-green">
-        {/* Narrative */}
-        <div className="mb-6 pb-4 border-b border-primary/10">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-warning text-xs">▶</span>
-            <span className="text-warning text-xs font-semibold tracking-widest">LOG DO SISTEMA</span>
-          </div>
-          <p className="text-foreground/80 text-sm leading-relaxed">{phase.narrative}</p>
+    <>
+      <div className={`animate-fade-in-up ${isShaking ? "animate-shake" : ""}`}>
+        <div className="flex items-center gap-3 mb-4">
+          <span
+            className="px-3 py-1 rounded-full text-xs font-bold tracking-wider"
+            style={{
+              backgroundColor: `${phase.badgeColor}22`,
+              color: phase.badgeColor,
+              border: `1px solid ${phase.badgeColor}44`,
+            }}
+          >
+            {phase.icon} CAMADA {phase.layer} — {phase.name.toUpperCase()}
+          </span>
         </div>
 
-        {/* Enigma */}
-        {phase.enigmaDisplay && (
-          <div className="bg-muted rounded-md p-4 mb-4 text-center">
-            <code className="text-xl md:text-2xl font-bold text-warning tracking-wider break-all">
-              {phase.enigmaDisplay}
-            </code>
-          </div>
-        )}
+        <p className="text-muted-foreground text-xs mb-6 tracking-wide">Protocolos: {phase.protocols}</p>
 
-        {phase.layer === 2 && renderEthernetFrame()}
-
-        <p className="text-foreground text-sm font-semibold mb-4">{phase.instruction}</p>
-
-        {/* Input area */}
-        {phase.enigmaType === 'text' && (
-          <input
-            type="text"
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && checkAnswer()}
-            placeholder="Digite sua resposta..."
-            className="w-full bg-input border border-primary/30 rounded-md px-4 py-3 text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:shadow-[0_0_10px_hsl(152_100%_50%/0.2)] transition-all"
-          />
-        )}
-
-        {phase.enigmaType === 'multiple-choice' && (
-          <div className="flex flex-col gap-2">
-            {phase.options?.map((opt, i) => (
-              <button
-                key={i}
-                onClick={() => setSelectedOption(i)}
-                className={`
-                  text-left px-4 py-3 rounded-md border text-sm transition-all
-                  ${selectedOption === i
-                    ? 'border-secondary bg-secondary/15 text-foreground'
-                    : 'border-primary/20 bg-muted text-foreground/80 hover:border-primary/40'
-                  }
-                `}
-              >
-                {opt}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {phase.enigmaType === 'drag-order' && (
-          <DragOrder
-            items={phase.correctAnswer as string[]}
-            order={dragOrder}
-            onReorder={setDragOrder}
-          />
-        )}
-
-        {/* Error message */}
-        {errorMessage && (
-          <p className="text-destructive text-sm mt-3 font-semibold">{errorMessage}</p>
-        )}
-
-        {/* Action buttons */}
-        {!showExplanation && (
-          <div className="flex items-center gap-3 mt-6">
-            <button
-              onClick={checkAnswer}
-              className="px-6 py-2.5 bg-primary text-primary-foreground rounded-md font-bold text-sm tracking-wider hover:shadow-[0_0_20px_hsl(152_100%_50%/0.3)] transition-all"
-            >
-              VERIFICAR
-            </button>
-            <button
-              onClick={() => setShowHint(true)}
-              className="px-4 py-2.5 bg-muted text-warning rounded-md text-sm font-semibold hover:bg-muted/80 transition-all"
-            >
-              💡 Dica
-            </button>
-          </div>
-        )}
-
-        {/* Hint */}
-        {showHint && !showExplanation && (
-          <div className="mt-4 p-3 rounded-md bg-warning/10 border border-warning/30">
-            <p className="text-warning text-sm">💡 {phase.hint}</p>
-          </div>
-        )}
-
-        {/* Explanation (correct answer) */}
-        {showExplanation && (
-          <div className="mt-6 animate-fade-in-up">
-            <div className="p-4 rounded-md border border-primary/40 bg-primary/5">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-primary text-lg">✅</span>
-                <span className="text-primary font-bold text-sm tracking-wider">CAMADA RESTAURADA!</span>
-              </div>
-              <p className="text-foreground/80 text-sm leading-relaxed">{phase.explanation}</p>
+        <div className="bg-card border border-primary/20 rounded-lg p-6 border-glow-green">
+          <div className="mb-6 pb-4 border-b border-primary/10">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-warning text-xs">▶</span>
+              <span className="text-warning text-xs font-semibold tracking-widest">LOG DO SISTEMA</span>
             </div>
-            <button
-              onClick={onComplete}
-              className="mt-4 px-6 py-2.5 bg-secondary text-secondary-foreground rounded-md font-bold text-sm tracking-wider hover:shadow-[0_0_20px_hsl(245_100%_69%/0.3)] transition-all"
-            >
-              {phase.layer < 7 ? 'PRÓXIMA CAMADA →' : 'FINALIZAR MISSÃO →'}
-            </button>
+            <p className="text-foreground/80 text-sm leading-relaxed">{phase.narrative}</p>
           </div>
-        )}
+
+          {phase.enigmaDisplay && (
+            <div className="bg-muted rounded-md p-4 mb-4 text-center">
+              <code className="text-xl md:text-2xl font-bold text-warning tracking-wider break-all">
+                {phase.enigmaDisplay}
+              </code>
+            </div>
+          )}
+
+          {phase.layer === 2 && renderEthernetFrame()}
+
+          <p className="text-foreground text-sm font-semibold mb-4">{phase.instruction}</p>
+
+          {phase.enigmaType === "text" && (
+            <input
+              type="text"
+              value={answer}
+              onChange={(event) => setAnswer(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && checkAnswer()}
+              placeholder="Digite sua resposta..."
+              className="w-full bg-input border border-primary/30 rounded-md px-4 py-3 text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:shadow-[0_0_10px_hsl(152_100%_50%/0.2)] transition-all"
+            />
+          )}
+
+          {phase.enigmaType === "multiple-choice" && (
+            <div className="flex flex-col gap-2">
+              {phase.options?.map((opt, i) => (
+                <button
+                  key={i}
+                  onClick={() => setSelectedOption(i)}
+                  className={`
+                    text-left px-4 py-3 rounded-md border text-sm transition-all
+                    ${selectedOption === i
+                      ? "border-secondary bg-secondary/15 text-foreground"
+                      : "border-primary/20 bg-muted text-foreground/80 hover:border-primary/40"
+                    }
+                  `}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {phase.enigmaType === "drag-order" && (
+            <DragOrder items={phase.correctAnswer as string[]} order={dragOrder} onReorder={setDragOrder} />
+          )}
+
+          {errorMessage && <p className="text-destructive text-sm mt-3 font-semibold">{errorMessage}</p>}
+
+          {!showExplanation && (
+            <div className="flex flex-wrap items-center gap-3 mt-6">
+              <button
+                onClick={checkAnswer}
+                className="px-6 py-2.5 bg-primary text-primary-foreground rounded-md font-bold text-sm tracking-wider hover:shadow-[0_0_20px_hsl(152_100%_50%/0.3)] transition-all"
+              >
+                VERIFICAR
+              </button>
+              <button
+                onClick={() => setShowHint(true)}
+                className="px-4 py-2.5 bg-muted text-warning rounded-md text-sm font-semibold hover:bg-muted/80 transition-all"
+              >
+                💡 Dica
+              </button>
+              {phase.referenceImage && (
+                <button
+                  onClick={() => setShowReferenceModal(true)}
+                  className="px-4 py-2.5 bg-muted text-secondary rounded-md text-sm font-semibold hover:bg-muted/80 transition-all"
+                >
+                  VER TABELA
+                </button>
+              )}
+            </div>
+          )}
+
+          {showHint && !showExplanation && (
+            <div className="mt-4 p-3 rounded-md bg-warning/10 border border-warning/30">
+              <p className="text-warning text-sm">💡 {phase.hint}</p>
+            </div>
+          )}
+
+          {showExplanation && (
+            <div className="mt-6 animate-fade-in-up">
+              <div className="p-4 rounded-md border border-primary/40 bg-primary/5">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-primary text-lg">✅</span>
+                  <span className="text-primary font-bold text-sm tracking-wider">CAMADA RESTAURADA!</span>
+                </div>
+                <p className="text-foreground/80 text-sm leading-relaxed">{phase.explanation}</p>
+              </div>
+              <button
+                onClick={onComplete}
+                className="mt-4 px-6 py-2.5 bg-secondary text-secondary-foreground rounded-md font-bold text-sm tracking-wider hover:shadow-[0_0_20px_hsl(245_100%_69%/0.3)] transition-all"
+              >
+                {phase.layer < 7 ? "PRÓXIMA CAMADA →" : "FINALIZAR MISSÃO →"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      {showReferenceModal && phase.referenceImage && (
+        <div className="fixed inset-0 z-[60]">
+          <div className="absolute inset-0 bg-background/40 backdrop-blur-[1px]" onClick={() => setShowReferenceModal(false)} />
+          <div
+            className="absolute w-[min(92vw,560px)] bg-card border border-primary/30 rounded-lg border-glow-green shadow-2xl"
+            style={{ left: modalPosition.x, top: modalPosition.y }}
+          >
+            <div
+              className="flex items-center justify-between px-4 py-3 border-b border-primary/20 cursor-grab active:cursor-grabbing bg-muted/70"
+              onPointerDown={handleModalDragStart}
+            >
+              <span className="text-xs tracking-widest text-secondary font-semibold">TABELA DE APOIO</span>
+              <button
+                onClick={() => setShowReferenceModal(false)}
+                className="text-sm px-2 py-1 rounded bg-muted hover:bg-muted/80 text-foreground/80"
+              >
+                FECHAR
+              </button>
+            </div>
+            <div className="p-3">
+              <img
+                src={phase.referenceImage}
+                alt={phase.referenceImageAlt ?? "Tabela de apoio"}
+                className="w-full h-auto rounded border border-primary/20"
+                draggable={false}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
