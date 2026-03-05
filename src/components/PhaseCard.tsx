@@ -4,10 +4,55 @@ import DragOrder from "@/components/DragOrder";
 
 interface PhaseCardProps {
   phase: Phase;
-  onComplete: (attempts: number) => void;
+  onComplete: (attempts: number, timeSpentSeconds: number) => void;
 }
 
 const DEFAULT_MODAL_POSITION = { x: 80, y: 120 };
+
+const tutorByLayer: Record<
+  number,
+  {
+    goal: string;
+    realExample: string;
+    commonMistake: string;
+  }
+> = {
+  1: {
+    goal: "Entender como o meio fisico impacta alcance e qualidade do sinal.",
+    realExample: "Link de longa distancia em campus usa fibra para reduzir atenuacao.",
+    commonMistake: "Tratar qualquer cabo como equivalente, ignorando distancia e ruido.",
+  },
+  2: {
+    goal: "Relacionar entrega local com MAC e estrutura de frame.",
+    realExample: "Switch decide porta de saida olhando tabela MAC.",
+    commonMistake: "Confundir broadcast com envio unicast.",
+  },
+  3: {
+    goal: "Compreender como roteadores encaminham pacotes entre redes.",
+    realExample: "Traceroute mostra cada hop da rota IP ate o destino.",
+    commonMistake: "Ignorar TTL ao diagnosticar perda de pacotes.",
+  },
+  4: {
+    goal: "Diferenciar confiabilidade do TCP e rapidez do UDP.",
+    realExample: "HTTP usa TCP; streaming em tempo real costuma usar UDP.",
+    commonMistake: "Achar que TCP e UDP se comportam igual em ordem/confirmacao.",
+  },
+  5: {
+    goal: "Entender controle de dialogo e continuidade de sessao.",
+    realExample: "Sistema precisa retomar sessao apos reconexao sem perder contexto.",
+    commonMistake: "Atribuir falha de sessao diretamente ao IP ou ao cabo.",
+  },
+  6: {
+    goal: "Reconhecer transformacao de dados: codificacao, formato e criptografia.",
+    realExample: "Conversao para UTF-8 evita caracteres corrompidos no app.",
+    commonMistake: "Confundir erro de formato com problema de transporte.",
+  },
+  7: {
+    goal: "Mapear servicos de aplicacao e impacto direto no usuario final.",
+    realExample: "Sem DNS, navegador nao encontra o host mesmo com rede ativa.",
+    commonMistake: "Assumir que falha de URL sempre e problema de internet/cabo.",
+  },
+};
 
 const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
   const [answer, setAnswer] = useState("");
@@ -23,6 +68,7 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
   });
   const [isShaking, setIsShaking] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [showTutor, setShowTutor] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [attempts, setAttempts] = useState(0);
@@ -30,13 +76,16 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
   const [isDraggingModal, setIsDraggingModal] = useState(false);
   const [modalPosition, setModalPosition] = useState(DEFAULT_MODAL_POSITION);
   const modalDragOffset = useRef({ x: 0, y: 0 });
+  const phaseStartRef = useRef(Date.now());
 
   const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 
   useEffect(() => {
+    phaseStartRef.current = Date.now();
     setAnswer("");
     setSelectedOption(null);
     setShowHint(false);
+    setShowTutor(false);
     setShowExplanation(false);
     setFeedback("");
     setAttempts(0);
@@ -100,7 +149,13 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
       setShowExplanation(true);
       setFeedback("Correto. " + phase.explanation);
     } else {
-      setFeedback("Incorreto. " + phase.wrongFeedback);
+      if (nextAttempts === 1) {
+        setFeedback("Incorreto. " + phase.wrongFeedback);
+      } else if (nextAttempts === 2) {
+        setFeedback(`Incorreto. Pista tecnica: ${phase.hint}`);
+      } else {
+        setFeedback(`Incorreto. Guia rapido: ${phase.explanation}`);
+      }
       setIsShaking(true);
       setTimeout(() => setIsShaking(false), 500);
     }
@@ -158,6 +213,35 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
               <span className="text-warning text-xs font-semibold tracking-widest">LOG DO SISTEMA</span>
             </div>
             <p className="text-foreground/80 text-sm leading-relaxed">{phase.narrative}</p>
+          </div>
+
+          <div className="mb-5 rounded-md border border-secondary/30 bg-secondary/10 p-4">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <p className="text-xs text-secondary font-semibold tracking-widest">MODO TUTOR</p>
+              <button
+                type="button"
+                onClick={() => setShowTutor((prev) => !prev)}
+                className="text-xs px-2 py-1 rounded bg-muted text-foreground/80 hover:bg-muted/80 transition-all"
+              >
+                {showTutor ? "OCULTAR" : "MOSTRAR"}
+              </button>
+            </div>
+            {showTutor && (
+              <div className="grid gap-2 text-xs md:text-sm">
+                <p className="text-foreground/90">
+                  <span className="text-secondary font-semibold">Objetivo:</span>{" "}
+                  {tutorByLayer[phase.layer]?.goal}
+                </p>
+                <p className="text-foreground/85">
+                  <span className="text-secondary font-semibold">Exemplo real:</span>{" "}
+                  {tutorByLayer[phase.layer]?.realExample}
+                </p>
+                <p className="text-foreground/85">
+                  <span className="text-secondary font-semibold">Erro comum:</span>{" "}
+                  {tutorByLayer[phase.layer]?.commonMistake}
+                </p>
+              </div>
+            )}
           </div>
 
           {phase.enigmaDisplay && (
@@ -244,7 +328,7 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
 
           {showExplanation && (
             <button
-              onClick={() => onComplete(attempts)}
+              onClick={() => onComplete(attempts, Math.max(1, Math.floor((Date.now() - phaseStartRef.current) / 1000)))}
               className="mt-4 px-6 py-2.5 bg-secondary text-secondary-foreground rounded-md font-bold text-sm tracking-wider hover:shadow-[0_0_20px_hsl(245_100%_69%/0.3)] transition-all"
             >
               {phase.layer < 7 ? "PROXIMA CAMADA ->" : "IR PARA MISSAO FINAL ->"}

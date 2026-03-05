@@ -10,6 +10,12 @@ import FinalMission from "@/components/FinalMission";
 export type GameState = "start" | "playing" | "final-mission" | "finished";
 
 const initialStars = Array.from({ length: phases.length }).map(() => 0);
+const initialLayerStats = Array.from({ length: phases.length }).map(() => ({
+  attempts: 0,
+  timeSpentSeconds: 0,
+  stars: 0,
+  xp: 0,
+}));
 
 const starsFromAttempts = (attempts: number) => {
   if (attempts <= 1) return 3;
@@ -28,6 +34,7 @@ const Index = () => {
   const [wrongAttempts, setWrongAttempts] = useState(0);
   const [correctAttempts, setCorrectAttempts] = useState(0);
   const [starsByLayer, setStarsByLayer] = useState<number[]>(initialStars);
+  const [layerStats, setLayerStats] = useState(initialLayerStats);
 
   useEffect(() => {
     if (gameState === "start" || gameState === "finished") return;
@@ -61,10 +68,11 @@ const Index = () => {
     setWrongAttempts(0);
     setCorrectAttempts(0);
     setStarsByLayer(initialStars);
+    setLayerStats(initialLayerStats);
   }, []);
 
   const handlePhaseComplete = useCallback(
-    (attempts: number) => {
+    (attempts: number, timeSpentSeconds: number) => {
       const stars = starsFromAttempts(attempts);
       const phaseXp = stars * 100;
       setXp((prev) => prev + phaseXp);
@@ -73,6 +81,16 @@ const Index = () => {
       setStarsByLayer((prev) => {
         const copy = [...prev];
         copy[currentPhase] = stars;
+        return copy;
+      });
+      setLayerStats((prev) => {
+        const copy = [...prev];
+        copy[currentPhase] = {
+          attempts,
+          timeSpentSeconds,
+          stars,
+          xp: phaseXp,
+        };
         return copy;
       });
 
@@ -106,6 +124,7 @@ const Index = () => {
     setWrongAttempts(0);
     setCorrectAttempts(0);
     setStarsByLayer(initialStars);
+    setLayerStats(initialLayerStats);
   }, []);
 
   const accuracy = useMemo(() => {
@@ -156,6 +175,7 @@ const Index = () => {
             xp={xp}
             accuracy={accuracy}
             starsByLayer={starsByLayer}
+            layerStats={layerStats}
           />
         )}
       </main>
