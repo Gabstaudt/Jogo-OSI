@@ -4,7 +4,7 @@ import DragOrder from "@/components/DragOrder";
 
 interface PhaseCardProps {
   phase: Phase;
-  onComplete: () => void;
+  onComplete: (attempts: number) => void;
 }
 
 const DEFAULT_MODAL_POSITION = { x: 80, y: 120 };
@@ -15,17 +15,17 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
   const [dragOrder, setDragOrder] = useState<string[]>(() => {
     if (phase.enigmaType === "drag-order" && Array.isArray(phase.correctAnswer)) {
       const shuffled = [...phase.correctAnswer].sort(() => Math.random() - 0.5);
-      if (JSON.stringify(shuffled) === JSON.stringify(phase.correctAnswer)) {
-        return [...shuffled].reverse();
-      }
-      return shuffled;
+      return JSON.stringify(shuffled) === JSON.stringify(phase.correctAnswer)
+        ? [...shuffled].reverse()
+        : shuffled;
     }
     return [];
   });
   const [isShaking, setIsShaking] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [feedback, setFeedback] = useState("");
+  const [attempts, setAttempts] = useState(0);
   const [showReferenceModal, setShowReferenceModal] = useState(false);
   const [isDraggingModal, setIsDraggingModal] = useState(false);
   const [modalPosition, setModalPosition] = useState(DEFAULT_MODAL_POSITION);
@@ -34,10 +34,24 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
   const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 
   useEffect(() => {
+    setAnswer("");
+    setSelectedOption(null);
+    setShowHint(false);
+    setShowExplanation(false);
+    setFeedback("");
+    setAttempts(0);
     setShowReferenceModal(false);
     setIsDraggingModal(false);
     setModalPosition(DEFAULT_MODAL_POSITION);
-  }, [phase.layer]);
+    if (phase.enigmaType === "drag-order" && Array.isArray(phase.correctAnswer)) {
+      const shuffled = [...phase.correctAnswer].sort(() => Math.random() - 0.5);
+      setDragOrder(
+        JSON.stringify(shuffled) === JSON.stringify(phase.correctAnswer) ? [...shuffled].reverse() : shuffled
+      );
+    } else {
+      setDragOrder([]);
+    }
+  }, [phase]);
 
   useEffect(() => {
     if (!isDraggingModal) return;
@@ -49,13 +63,9 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
       });
     };
 
-    const handlePointerUp = () => {
-      setIsDraggingModal(false);
-    };
-
+    const handlePointerUp = () => setIsDraggingModal(false);
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
-
     return () => {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
@@ -75,6 +85,8 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
 
   const checkAnswer = useCallback(() => {
     let correct = false;
+    const nextAttempts = attempts + 1;
+    setAttempts(nextAttempts);
 
     if (phase.enigmaType === "text") {
       correct = normalize(answer) === normalize(String(phase.correctAnswer));
@@ -86,13 +98,13 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
 
     if (correct) {
       setShowExplanation(true);
-      setErrorMessage("");
+      setFeedback("Correto. " + phase.explanation);
     } else {
-      setErrorMessage(" Resposta incorreta. Tente novamente!");
+      setFeedback("Incorreto. " + phase.wrongFeedback);
       setIsShaking(true);
       setTimeout(() => setIsShaking(false), 500);
     }
-  }, [answer, selectedOption, dragOrder, phase]);
+  }, [answer, attempts, dragOrder, phase, selectedOption]);
 
   const renderEthernetFrame = () => (
     <div className="overflow-x-auto mb-4">
@@ -123,25 +135,26 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
   return (
     <>
       <div className={`animate-fade-in-up ${isShaking ? "animate-shake" : ""}`}>
-        <div className="flex items-center gap-3 mb-4">
-          <span
-            className="px-3 py-1 rounded-full text-xs font-bold tracking-wider"
-            style={{
-              backgroundColor: `${phase.badgeColor}22`,
-              color: phase.badgeColor,
-              border: `1px solid ${phase.badgeColor}44`,
-            }}
-          >
-            {phase.icon} CAMADA {phase.layer} — {phase.name.toUpperCase()}
-          </span>
-        </div>
-
-        <p className="text-muted-foreground text-xs mb-6 tracking-wide">Protocolos: {phase.protocols}</p>
-
         <div className="bg-card border border-primary/20 rounded-lg p-6 border-glow-green">
+          <div className="mb-4 pb-4 border-b border-primary/10">
+            <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
+              <span
+                className="px-3 py-1 rounded-full text-xs font-bold tracking-wider"
+                style={{
+                  backgroundColor: `${phase.badgeColor}22`,
+                  color: phase.badgeColor,
+                  border: `1px solid ${phase.badgeColor}44`,
+                }}
+              >
+                {phase.icon} CAMADA {phase.layer} - {phase.name.toUpperCase()}
+              </span>
+            </div>
+            <p className="text-muted-foreground text-xs tracking-wide">Protocolos: {phase.protocols}</p>
+          </div>
+
           <div className="mb-6 pb-4 border-b border-primary/10">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-warning text-xs">▶</span>
+              <span className="text-warning text-xs">{">"}</span>
               <span className="text-warning text-xs font-semibold tracking-widest">LOG DO SISTEMA</span>
             </div>
             <p className="text-foreground/80 text-sm leading-relaxed">{phase.narrative}</p>
@@ -176,13 +189,11 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
                 <button
                   key={i}
                   onClick={() => setSelectedOption(i)}
-                  className={`
-                    text-left px-4 py-3 rounded-md border text-sm transition-all
-                    ${selectedOption === i
+                  className={`text-left px-4 py-3 rounded-md border text-sm transition-all ${
+                    selectedOption === i
                       ? "border-secondary bg-secondary/15 text-foreground"
                       : "border-primary/20 bg-muted text-foreground/80 hover:border-primary/40"
-                    }
-                  `}
+                  }`}
                 >
                   {opt}
                 </button>
@@ -193,8 +204,6 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
           {phase.enigmaType === "drag-order" && (
             <DragOrder items={phase.correctAnswer as string[]} order={dragOrder} onReorder={setDragOrder} />
           )}
-
-          {errorMessage && <p className="text-destructive text-sm mt-3 font-semibold">{errorMessage}</p>}
 
           {!showExplanation && (
             <div className="flex flex-wrap items-center gap-3 mt-6">
@@ -208,7 +217,7 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
                 onClick={() => setShowHint(true)}
                 className="px-4 py-2.5 bg-muted text-warning rounded-md text-sm font-semibold hover:bg-muted/80 transition-all"
               >
-                💡 Dica
+                DICA
               </button>
               {phase.referenceImage && (
                 <button
@@ -223,26 +232,23 @@ const PhaseCard = ({ phase, onComplete }: PhaseCardProps) => {
 
           {showHint && !showExplanation && (
             <div className="mt-4 p-3 rounded-md bg-warning/10 border border-warning/30">
-              <p className="text-warning text-sm">💡 {phase.hint}</p>
+              <p className="text-warning text-sm">{phase.hint}</p>
+            </div>
+          )}
+
+          {feedback && (
+            <div className="mt-4 p-3 rounded-md border border-secondary/30 bg-secondary/10">
+              <p className="text-sm text-foreground/90">{feedback}</p>
             </div>
           )}
 
           {showExplanation && (
-            <div className="mt-6 animate-fade-in-up">
-              <div className="p-4 rounded-md border border-primary/40 bg-primary/5">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-primary text-lg">✅</span>
-                  <span className="text-primary font-bold text-sm tracking-wider">CAMADA RESTAURADA!</span>
-                </div>
-                <p className="text-foreground/80 text-sm leading-relaxed">{phase.explanation}</p>
-              </div>
-              <button
-                onClick={onComplete}
-                className="mt-4 px-6 py-2.5 bg-secondary text-secondary-foreground rounded-md font-bold text-sm tracking-wider hover:shadow-[0_0_20px_hsl(245_100%_69%/0.3)] transition-all"
-              >
-                {phase.layer < 7 ? "PRÓXIMA CAMADA →" : "FINALIZAR MISSÃO →"}
-              </button>
-            </div>
+            <button
+              onClick={() => onComplete(attempts)}
+              className="mt-4 px-6 py-2.5 bg-secondary text-secondary-foreground rounded-md font-bold text-sm tracking-wider hover:shadow-[0_0_20px_hsl(245_100%_69%/0.3)] transition-all"
+            >
+              {phase.layer < 7 ? "PROXIMA CAMADA ->" : "IR PARA MISSAO FINAL ->"}
+            </button>
           )}
         </div>
       </div>
