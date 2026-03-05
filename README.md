@@ -16,9 +16,6 @@ Estimular colaboração, comunicação e pensamento crítico em equipe
 Aproximar conceitos teóricos de situações reais de troubleshooting
 
 
-As 7 Camadas e seus Enigmas
-#CamadaProtocolosTipo de Enigma1🔌 FísicaRS-232, DSL, Bluetooth, fibra ópticaCódigo Morse2🔗 Enlace de DadosEthernet, Wi-Fi 802.11, MAC, PPPIdentificação de erro em frame3🗺️ RedeIPv4, IPv6, ICMP, ARP, OSPF, BGPCálculo de TTL4🚚 TransporteTCP, UDPOrdenação do Three-Way Handshake5🤝 SessãoNetBIOS, RPC, SIP, PPTPMúltipla escolha conceitual6🎨 ApresentaçãoSSL/TLS, JPEG, ASCII, UTF-8, MIMEDecodificação Base647🖥️ AplicaçãoHTTP, HTTPS, DNS, FTP, SMTP, SSHCifra ROT13
-
 Como Funciona
 
 O jogo começa com um cronômetro regressivo de 30 minutos
@@ -38,8 +35,7 @@ Sem back-end
 
 
 Como Rodar Localmente
-bash# Clone o repositório
-git clone https://github.com/seu-usuario/conexao-perdida.git
+Clone o repositório
 
 # Entre na pasta
 cd Jogo-OSI
