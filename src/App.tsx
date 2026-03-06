@@ -8,6 +8,7 @@ import NotFound from "./pages/NotFound";
 import Competition from "./pages/Competition";
 import NOC from "./pages/NOC";
 import Cooper from "./pages/Cooper";
+import Home from "./pages/Home";
 
 const queryClient = new QueryClient();
 
@@ -18,8 +19,10 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/individual" element={<Index />} />
           <Route path="/competition" element={<Competition />} />
+          <Route path="/noc" element={<NOC />} />
           <Route path="/NOC" element={<NOC />} />
           <Route path="/cooper" element={<Cooper />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
