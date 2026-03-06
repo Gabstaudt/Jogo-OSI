@@ -113,6 +113,53 @@ export interface NocPlayerView {
   };
 }
 
+export interface CooperRoomView {
+  code: string;
+  name: string;
+  status: "waiting" | "running" | "finished";
+  createdAt: number;
+  hostPlayerId: string;
+  currentMissionIndex: number;
+  currentStepIndex: number;
+  totalMissions: number;
+  missionDurationSeconds: number;
+  remainingSeconds: number;
+  players: { id: string; name: string; role: "operator" | "analyst"; points: number }[];
+  events: string[];
+  ranking: {
+    playerId: string;
+    playerName: string;
+    role: "operator" | "analyst";
+    points: number;
+    wrongActions: number;
+  }[];
+}
+
+export interface CooperRoomJoinResult {
+  room: CooperRoomView;
+  playerId: string;
+}
+
+export interface CooperPlayerView {
+  room: CooperRoomView;
+  view: {
+    role: "operator" | "analyst";
+    remainingSeconds: number;
+    mission: {
+      id: string;
+      title: string;
+      problem: string;
+      affectedLayer: string;
+      stepId: string;
+      stepTitle: string;
+      currentStepIndex: number;
+      totalSteps: number;
+      operatorLogs: string[];
+      manualSections: string[];
+    } | null;
+  };
+}
+
 const handleJson = async <T>(res: Response): Promise<T> => {
   if (!res.ok) {
     const text = await res.text();
@@ -264,5 +311,70 @@ export const api = {
       body: JSON.stringify({ playerId, selectedAction, sequence }),
     });
     return handleJson<{ room: NocRoomView; result: { correct: boolean; feedback: string } }>(res);
+  },
+
+  async listCooperRooms(): Promise<CooperRoomView[]> {
+    const res = await fetch(`${API_BASE}/game/cooper/rooms`);
+    return handleJson<CooperRoomView[]>(res);
+  },
+
+  async createCooperRoom(name: string, hostName: string): Promise<CooperRoomJoinResult> {
+    const res = await fetch(`${API_BASE}/game/cooper/rooms`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, hostName }),
+    });
+    return handleJson<CooperRoomJoinResult>(res);
+  },
+
+  async joinCooperRoom(roomCode: string, playerName: string): Promise<CooperRoomJoinResult> {
+    const res = await fetch(`${API_BASE}/game/cooper/rooms/${roomCode}/join`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerName }),
+    });
+    return handleJson<CooperRoomJoinResult>(res);
+  },
+
+  async getCooperRoom(roomCode: string): Promise<CooperRoomView> {
+    const res = await fetch(`${API_BASE}/game/cooper/rooms/${roomCode}`);
+    return handleJson<CooperRoomView>(res);
+  },
+
+  async startCooperRoom(roomCode: string, playerId: string): Promise<CooperRoomView> {
+    const res = await fetch(`${API_BASE}/game/cooper/rooms/${roomCode}/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId }),
+    });
+    return handleJson<CooperRoomView>(res);
+  },
+
+  async getCooperPlayerView(roomCode: string, playerId: string): Promise<CooperPlayerView> {
+    const res = await fetch(`${API_BASE}/game/cooper/rooms/${roomCode}/view/${playerId}`);
+    return handleJson<CooperPlayerView>(res);
+  },
+
+  async submitCooperAction(
+    roomCode: string,
+    playerId: string,
+    payload: {
+      type: string;
+      routePath?: string;
+      gateway?: string;
+      ttl?: string;
+      dnsServer?: string;
+      sequence?: string[];
+      decodedText?: string;
+      cables?: string[];
+      cableType?: string;
+    },
+  ): Promise<{ room: CooperRoomView; result: { correct: boolean; feedback: string } }> {
+    const res = await fetch(`${API_BASE}/game/cooper/rooms/${roomCode}/action`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId, ...payload }),
+    });
+    return handleJson<{ room: CooperRoomView; result: { correct: boolean; feedback: string } }>(res);
   },
 };
