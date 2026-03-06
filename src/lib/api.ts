@@ -60,6 +60,59 @@ export interface CompetitionRoomJoinResult {
   playerId: string;
 }
 
+export type NocRoleKey =
+  | "fisico"
+  | "enlace"
+  | "rede"
+  | "transporte"
+  | "sessao"
+  | "apresentacao"
+  | "aplicacao";
+
+export interface NocRoomView {
+  code: string;
+  name: string;
+  status: "waiting" | "running" | "finished";
+  createdAt: number;
+  hostPlayerId: string;
+  currentScenarioIndex: number;
+  totalScenarios: number;
+  players: { id: string; name: string; roles: NocRoleKey[]; points: number }[];
+  events: string[];
+  ranking: {
+    playerId: string;
+    playerName: string;
+    roles: NocRoleKey[];
+    points: number;
+    wrongActions: number;
+  }[];
+}
+
+export interface NocRoomJoinResult {
+  room: NocRoomView;
+  playerId: string;
+}
+
+export interface NocPlayerView {
+  room: NocRoomView;
+  view: {
+    isAnalyst: boolean;
+    isOperator: boolean;
+    analystName: string | null;
+    operatorName: string | null;
+    operatorAllowed: boolean;
+    scenario: {
+      id: string;
+      title: string;
+      problem: string;
+      role: NocRoleKey;
+      kind: "single" | "sequence";
+      analystLogs: string[];
+      operatorActions: string[];
+    } | null;
+  };
+}
+
 const handleJson = async <T>(res: Response): Promise<T> => {
   if (!res.ok) {
     const text = await res.text();
@@ -155,5 +208,61 @@ export const api = {
       body: JSON.stringify({ playerId, layer, answer }),
     });
     return handleJson<{ room: CompetitionRoomView; result: ApiValidateResult }>(res);
+  },
+
+  async listNocRooms(): Promise<NocRoomView[]> {
+    const res = await fetch(`${API_BASE}/game/noc/rooms`);
+    return handleJson<NocRoomView[]>(res);
+  },
+
+  async createNocRoom(name: string, hostName: string): Promise<NocRoomJoinResult> {
+    const res = await fetch(`${API_BASE}/game/noc/rooms`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, hostName }),
+    });
+    return handleJson<NocRoomJoinResult>(res);
+  },
+
+  async joinNocRoom(roomCode: string, playerName: string): Promise<NocRoomJoinResult> {
+    const res = await fetch(`${API_BASE}/game/noc/rooms/${roomCode}/join`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerName }),
+    });
+    return handleJson<NocRoomJoinResult>(res);
+  },
+
+  async getNocRoom(roomCode: string): Promise<NocRoomView> {
+    const res = await fetch(`${API_BASE}/game/noc/rooms/${roomCode}`);
+    return handleJson<NocRoomView>(res);
+  },
+
+  async startNocRoom(roomCode: string, playerId: string): Promise<NocRoomView> {
+    const res = await fetch(`${API_BASE}/game/noc/rooms/${roomCode}/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId }),
+    });
+    return handleJson<NocRoomView>(res);
+  },
+
+  async getNocPlayerView(roomCode: string, playerId: string): Promise<NocPlayerView> {
+    const res = await fetch(`${API_BASE}/game/noc/rooms/${roomCode}/view/${playerId}`);
+    return handleJson<NocPlayerView>(res);
+  },
+
+  async submitNocAction(
+    roomCode: string,
+    playerId: string,
+    selectedAction?: string,
+    sequence?: string[],
+  ): Promise<{ room: NocRoomView; result: { correct: boolean; feedback: string } }> {
+    const res = await fetch(`${API_BASE}/game/noc/rooms/${roomCode}/action`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId, selectedAction, sequence }),
+    });
+    return handleJson<{ room: NocRoomView; result: { correct: boolean; feedback: string } }>(res);
   },
 };
