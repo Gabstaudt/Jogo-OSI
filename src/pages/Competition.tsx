@@ -43,7 +43,7 @@ const Competition = () => {
         if (!alive) return;
         setActiveRoom(room);
         if (playerId && room.status === "running" && room.players.some((p) => p.id === playerId)) {
-          navigate(`/?room=${room.code}&player=${playerId}`);
+          navigate(`/individual?room=${room.code}&player=${playerId}`);
         }
       } catch {
         // ignore polling error

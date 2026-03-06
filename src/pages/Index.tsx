@@ -106,8 +106,13 @@ const Index = () => {
     return () => clearInterval(interval);
   }, [gameState, timeLeft]);
 
-  const finalizeGame = useCallback(() => {
-    const elapsed = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
+  const finalizeGame = useCallback((elapsedOverride?: number) => {
+    const elapsed =
+      typeof elapsedOverride === "number"
+        ? elapsedOverride
+        : startTime
+          ? Math.floor((Date.now() - startTime) / 1000)
+          : 0;
     setTotalTime(elapsed);
     setGameState("finished");
   }, [startTime]);
@@ -139,7 +144,7 @@ const Index = () => {
         }
 
         if (room.status === "finished" || (me?.solvedLayers ?? 0) >= phases.length) {
-          finalizeGame();
+          finalizeGame(me?.elapsedSeconds ?? 0);
         }
       } catch {
         // ignore polling error
@@ -204,8 +209,6 @@ const Index = () => {
       if (isCompetitionMode) {
         if (currentPhase < phasesData.length - 1) {
           setCurrentPhase((prev) => prev + 1);
-        } else {
-          finalizeGame();
         }
         return;
       }
