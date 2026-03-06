@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { Phase } from "@/data/phases";
 
 interface OsiVisualizationProps {
@@ -5,29 +6,41 @@ interface OsiVisualizationProps {
   completedLayers: number;
 }
 
-const flowLayers = [
-  "Aplicacao",
-  "Apresentacao",
-  "Sessao",
-  "Transporte",
-  "Rede",
-  "Enlace",
-  "Fisica",
-];
+const flowLayers = ["Aplicacao", "Apresentacao", "Sessao", "Transporte", "Rede", "Enlace", "Fisica"];
 
-const encapsulation = [
-  "[DATA]",
-  "[TLS/FORMAT | DATA]",
-  "[SESSION | TLS/FORMAT | DATA]",
-  "[TCP HEADER | SESSION | TLS/FORMAT | DATA]",
-  "[IP HEADER | TCP HEADER | SESSION | TLS/FORMAT | DATA]",
-  "[ETH HEADER | IP HEADER | TCP HEADER | SESSION | TLS/FORMAT | DATA | FCS]",
-];
+const encapsulationTargets = ["DATA", "TCP HEADER", "IP HEADER", "ETH HEADER", "FCS"];
 
 const OsiVisualization = ({ phase, completedLayers }: OsiVisualizationProps) => {
-  const activeIndex = flowLayers.findIndex(
-    (layer) => layer.toLowerCase() === phase.name.toLowerCase()
-  );
+  const activeIndex = flowLayers.findIndex((layer) => layer.toLowerCase() === phase.name.toLowerCase());
+  const [encapsulationOrder, setEncapsulationOrder] = useState<string[]>([]);
+  const [encapFeedback, setEncapFeedback] = useState("");
+
+  const requiredPieces = useMemo(() => {
+    if (phase.layer <= 2) return ["DATA"];
+    if (phase.layer <= 3) return ["DATA", "TCP HEADER", "IP HEADER"];
+    return [...encapsulationTargets];
+  }, [phase.layer]);
+
+  useEffect(() => {
+    const shuffled = [...requiredPieces].sort(() => Math.random() - 0.5);
+    setEncapsulationOrder(shuffled);
+    setEncapFeedback("");
+  }, [requiredPieces, phase.layer]);
+
+  const movePiece = (index: number, direction: -1 | 1) => {
+    const next = index + direction;
+    if (next < 0 || next >= encapsulationOrder.length) return;
+    const copy = [...encapsulationOrder];
+    [copy[index], copy[next]] = [copy[next], copy[index]];
+    setEncapsulationOrder(copy);
+  };
+
+  const checkEncapsulation = () => {
+    const validOrder = requiredPieces.filter((p) => encapsulationTargets.includes(p));
+    const targetOrder = encapsulationTargets.filter((p) => validOrder.includes(p));
+    const ok = JSON.stringify(encapsulationOrder) === JSON.stringify(targetOrder);
+    setEncapFeedback(ok ? "Correto: encapsulamento montado na ordem certa." : "Ainda fora de ordem. Pense na descida da pilha.");
+  };
 
   return (
     <section className="bg-card border border-primary/20 rounded-lg p-5 border-glow-green">
@@ -59,20 +72,28 @@ const OsiVisualization = ({ phase, completedLayers }: OsiVisualizationProps) => 
         </div>
 
         <div className="bg-muted/40 border border-primary/10 rounded-md p-3">
-          <p className="text-xs text-warning mb-2">Encapsulamento</p>
+          <p className="text-xs text-warning mb-2">Mini puzzle de encapsulamento</p>
           <div className="space-y-2">
-            {encapsulation.slice(0, Math.max(1, phase.layer - 1)).map((line, idx) => (
-              <div
-                key={`${line}-${idx}`}
-                className="text-[11px] md:text-xs font-mono border border-primary/20 rounded px-2 py-1 bg-background/60"
-              >
-                {line}
+            {encapsulationOrder.map((piece, idx) => (
+              <div key={`${piece}-${idx}`} className="flex items-center gap-2 border border-primary/20 rounded px-2 py-1 bg-background/60">
+                <span className="text-[11px] md:text-xs font-mono flex-1">{piece}</span>
+                <button className="text-xs px-2 py-0.5 rounded bg-muted hover:bg-muted/80" onClick={() => movePiece(idx, -1)}>
+                  ^
+                </button>
+                <button className="text-xs px-2 py-0.5 rounded bg-muted hover:bg-muted/80" onClick={() => movePiece(idx, 1)}>
+                  v
+                </button>
               </div>
             ))}
           </div>
-          <p className="text-[11px] text-muted-foreground mt-3">
-            Camadas restauradas: {completedLayers}/7
-          </p>
+          <button
+            onClick={checkEncapsulation}
+            className="mt-3 text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground font-semibold hover:shadow-[0_0_12px_hsl(152_100%_50%/0.25)]"
+          >
+            VALIDAR ORDEM
+          </button>
+          {encapFeedback && <p className="text-xs mt-2 text-foreground/85">{encapFeedback}</p>}
+          <p className="text-[11px] text-muted-foreground mt-3">Camadas restauradas: {completedLayers}/7</p>
         </div>
       </div>
 
