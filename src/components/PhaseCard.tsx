@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { Phase } from "@/data/phases";
-import DragOrder from "@/components/DragOrder";
 import type { ApiValidateResult } from "@/lib/api";
 
 interface PhaseCardProps {
@@ -49,76 +48,15 @@ const tutorByLayer: Record<number, { goal: string; realExample: string; commonMi
   },
 };
 
-const causalMapByLayer: Record<number, { symptom: string; probableLayer: string; recommendedTest: string }> = {
-  1: {
-    symptom: "Sem conectividade basica entre dispositivos.",
-    probableLayer: "Fisica",
-    recommendedTest: "Checar cabo, porta e nivel de sinal.",
-  },
-  2: {
-    symptom: "Frame chega em host errado na LAN.",
-    probableLayer: "Enlace",
-    recommendedTest: "Verificar destino MAC e tabela de comutacao.",
-  },
-  3: {
-    symptom: "Pacote morre entre roteadores.",
-    probableLayer: "Rede",
-    recommendedTest: "Executar traceroute e checar TTL/hops.",
-  },
-  4: {
-    symptom: "Perda de ordem ou conexao instavel.",
-    probableLayer: "Transporte",
-    recommendedTest: "Validar handshake e sequenciamento TCP.",
-  },
-  5: {
-    symptom: "Sessao encerra sem aviso.",
-    probableLayer: "Sessao",
-    recommendedTest: "Checar timeout e reestabelecimento de sessao.",
-  },
-  6: {
-    symptom: "Texto ilegivel ou dados corrompidos.",
-    probableLayer: "Apresentacao",
-    recommendedTest: "Validar codificacao e formato dos dados.",
-  },
-  7: {
-    symptom: "URL nao abre mesmo com rede ativa.",
-    probableLayer: "Aplicacao",
-    recommendedTest: "Consultar DNS e disponibilidade de servico.",
-  },
-};
-
-const scenarioBank: Record<number, string[]> = {
-  1: ["Dois laboratorios a 1 km precisam de link estavel.", "Interferencia eletrica derrubou link de sala tecnica."],
-  2: ["Notebook recebe frame que deveria ir para outro host.", "Switch inundando trafego por MAC desconhecido."],
-  3: ["Usuário alcança gateway, mas nao servidor remoto.", "TTL expira antes do datacenter."],
-  4: ["Streaming travando com perda de pacotes.", "Transferencia de arquivo exige entrega confiavel."],
-  5: ["Aplicacao web desconecta usuario em intervalo curto.", "Sessao precisa ser retomada apos queda de wifi."],
-  6: ["Sistema recebe acentos quebrados em API.", "Payload cifrado nao e interpretado no cliente."],
-  7: ["Dominio interno nao resolve no navegador.", "Servico HTTP ativo por IP, falha por nome."],
-};
-
-const phaseSteps: Record<number, string[]> = {
-  1: ["Conceito: medio fisico transporta bits.", "Decisao: escolher meio adequado.", "Aplicacao: estabilizar enlace."],
-  2: ["Conceito: frame usa MAC local.", "Decisao: identificar campo incorreto.", "Aplicacao: corrigir entrega na LAN."],
-  3: ["Conceito: pacotes seguem rotas IP.", "Decisao: analisar TTL/hops.", "Aplicacao: evitar descarte em rota."],
-  4: ["Conceito: TCP confirma sessao.", "Decisao: ordenar handshake.", "Aplicacao: restaurar confiabilidade."],
-  5: ["Conceito: sessao controla dialogo.", "Decisao: identificar funcao da camada.", "Aplicacao: evitar encerramento abrupto."],
-  6: ["Conceito: camada traduz/formata.", "Decisao: decodificar payload.", "Aplicacao: renderizar dados corretos."],
-  7: ["Conceito: servicos atendem usuario.", "Decisao: identificar servico faltante.", "Aplicacao: recuperar acesso por nome."],
-};
-
 const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
   const [answer, setAnswer] = useState("");
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
-  const [dragOrder, setDragOrder] = useState<string[]>([]);
   const [isShaking, setIsShaking] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [showTutor, setShowTutor] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [attempts, setAttempts] = useState(0);
-  const [scenario, setScenario] = useState("");
-  const [stepIndex, setStepIndex] = useState(0);
   const [showReferenceModal, setShowReferenceModal] = useState(false);
   const [isDraggingModal, setIsDraggingModal] = useState(false);
   const [modalPosition, setModalPosition] = useState(DEFAULT_MODAL_POSITION);
@@ -126,7 +64,6 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
   const phaseStartRef = useRef(Date.now());
 
   const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
-  const layerSteps = phaseSteps[phase.layer] || [];
 
   useEffect(() => {
     phaseStartRef.current = Date.now();
@@ -137,23 +74,9 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
     setShowExplanation(false);
     setFeedback("");
     setAttempts(0);
-    setStepIndex(0);
     setShowReferenceModal(false);
     setIsDraggingModal(false);
     setModalPosition(DEFAULT_MODAL_POSITION);
-    const scenarios = scenarioBank[phase.layer] || [];
-    setScenario(scenarios[Math.floor(Math.random() * scenarios.length)] || "");
-    if (phase.enigmaType === "drag-order") {
-      const sourceItems = Array.isArray(phase.options)
-        ? phase.options
-        : Array.isArray(phase.correctAnswer)
-          ? phase.correctAnswer
-          : [];
-      const shuffled = [...sourceItems].sort(() => Math.random() - 0.5);
-      setDragOrder(shuffled);
-    } else {
-      setDragOrder([]);
-    }
   }, [phase]);
 
   useEffect(() => {
@@ -184,14 +107,18 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
   const checkAnswer = useCallback(async () => {
     const nextAttempts = attempts + 1;
     setAttempts(nextAttempts);
+
     const userAnswer =
       phase.enigmaType === "text"
         ? normalize(answer)
         : phase.enigmaType === "multiple-choice"
           ? selectedOption
-          : dragOrder;
+          : answer
+              .split(",")
+              .map((item) => normalize(item))
+              .filter(Boolean);
 
-    if (userAnswer === null || (Array.isArray(userAnswer) && userAnswer.length === 0)) {
+    if (userAnswer === null || userAnswer === "" || (Array.isArray(userAnswer) && userAnswer.length === 0)) {
       setFeedback("Preencha a resposta antes de verificar.");
       return;
     }
@@ -216,33 +143,7 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
 
     setIsShaking(true);
     setTimeout(() => setIsShaking(false), 500);
-  }, [answer, attempts, dragOrder, normalize, onValidate, phase, selectedOption]);
-
-  const renderEthernetFrame = () => (
-    <div className="overflow-x-auto mb-4">
-      <table className="w-full text-xs border border-primary/30">
-        <thead>
-          <tr className="bg-muted">
-            <th className="px-3 py-2 text-left text-muted-foreground border-r border-primary/20">Campo</th>
-            <th className="px-3 py-2 text-left text-foreground">Valor</th>
-          </tr>
-        </thead>
-        <tbody>
-          {[
-            ["MAC Origem", "AA:BB:CC:DD:EE:FF"],
-            ["MAC Destino", "FF:FF:FF:FF:FF:FF"],
-            ["Tipo", "0x0800"],
-            ["Dados", "[payload]"],
-          ].map(([field, value]) => (
-            <tr key={field} className="border-t border-primary/20">
-              <td className="px-3 py-2 text-warning font-semibold border-r border-primary/20">{field}</td>
-              <td className="px-3 py-2 text-foreground font-mono">{value}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  }, [answer, attempts, normalize, onValidate, phase, selectedOption]);
 
   return (
     <>
@@ -258,29 +159,6 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
             <p className="text-muted-foreground text-xs tracking-wide mt-2">Protocolos: {phase.protocols}</p>
           </div>
 
-          <div className="mb-5 rounded-md border border-warning/30 bg-warning/10 p-3">
-            <p className="text-xs text-warning font-semibold tracking-widest mb-2">PASSO A PASSO</p>
-            <div className="grid gap-1">
-              {layerSteps.map((step, index) => (
-                <p key={`${step}-${index}`} className={`text-xs ${index === stepIndex ? "text-foreground font-semibold" : "text-foreground/70"}`}>
-                  {index + 1}. {step}
-                </p>
-              ))}
-            </div>
-            <button
-              type="button"
-              className="mt-2 text-xs px-2 py-1 rounded bg-muted hover:bg-muted/80"
-              onClick={() => setStepIndex((prev) => (layerSteps.length ? (prev + 1) % layerSteps.length : 0))}
-            >
-              AVANCAR ETAPA
-            </button>
-          </div>
-
-          <div className="mb-5 rounded-md border border-primary/20 bg-muted/30 p-3">
-            <p className="text-xs text-secondary font-semibold tracking-widest mb-1">CENARIO REAL</p>
-            <p className="text-sm text-foreground/85">{scenario}</p>
-          </div>
-
           <div className="mb-6 pb-4 border-b border-primary/10">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-warning text-xs">{">"}</span>
@@ -291,7 +169,7 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
 
           <div className="mb-5 rounded-md border border-secondary/30 bg-secondary/10 p-4">
             <div className="flex items-center justify-between gap-3 mb-2">
-              <p className="text-xs text-secondary font-semibold tracking-widest">MODO TUTOR</p>
+              <p className="text-xs text-secondary font-semibold tracking-widest">MODO MENTOR</p>
               <button
                 type="button"
                 onClick={() => setShowTutor((prev) => !prev)}
@@ -302,7 +180,7 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
             </div>
             {showTutor && (
               <div className="grid gap-2 text-xs md:text-sm">
-                <p><span className="text-secondary font-semibold">Objetivo:</span> {tutorByLayer[phase.layer]?.goal}</p>
+                <p><span className="text-secondary font-semibold">Conceito:</span> {tutorByLayer[phase.layer]?.goal}</p>
                 <p><span className="text-secondary font-semibold">Exemplo real:</span> {tutorByLayer[phase.layer]?.realExample}</p>
                 <p><span className="text-secondary font-semibold">Erro comum:</span> {tutorByLayer[phase.layer]?.commonMistake}</p>
               </div>
@@ -315,7 +193,6 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
             </div>
           )}
 
-          {phase.layer === 2 && renderEthernetFrame()}
           <p className="text-foreground text-sm font-semibold mb-4">{phase.instruction}</p>
 
           {phase.enigmaType === "text" && (
@@ -346,7 +223,14 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
           )}
 
           {phase.enigmaType === "drag-order" && (
-            <DragOrder items={phase.correctAnswer as string[]} order={dragOrder} onReorder={setDragOrder} />
+            <input
+              type="text"
+              value={answer}
+              onChange={(event) => setAnswer(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && checkAnswer()}
+              placeholder="Digite a ordem separada por virgula..."
+              className="w-full bg-input border border-primary/30 rounded-md px-4 py-3 text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+            />
           )}
 
           {!showExplanation && (
@@ -374,15 +258,6 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
           {feedback && (
             <div className="mt-4 p-3 rounded-md border border-secondary/30 bg-secondary/10">
               <p className="text-sm text-foreground/90">{feedback}</p>
-            </div>
-          )}
-
-          {attempts > 0 && !showExplanation && (
-            <div className="mt-4 p-3 rounded-md border border-primary/20 bg-primary/5">
-              <p className="text-xs text-primary font-semibold mb-1">MAPA CAUSA - CAMADA - TESTE</p>
-              <p className="text-xs text-foreground/85">Sintoma: {causalMapByLayer[phase.layer].symptom}</p>
-              <p className="text-xs text-foreground/85">Camada provavel: {causalMapByLayer[phase.layer].probableLayer}</p>
-              <p className="text-xs text-foreground/85">Teste recomendado: {causalMapByLayer[phase.layer].recommendedTest}</p>
             </div>
           )}
 
