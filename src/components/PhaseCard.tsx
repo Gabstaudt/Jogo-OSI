@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { Phase } from "@/data/phases";
+import DragOrder from "@/components/DragOrder";
 import type { ApiValidateResult } from "@/lib/api";
 
 interface PhaseCardProps {
@@ -51,6 +52,7 @@ const tutorByLayer: Record<number, { goal: string; realExample: string; commonMi
 const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
   const [answer, setAnswer] = useState("");
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [dragOrder, setDragOrder] = useState<string[]>([]);
   const [isShaking, setIsShaking] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [showTutor, setShowTutor] = useState(false);
@@ -69,6 +71,16 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
     phaseStartRef.current = Date.now();
     setAnswer("");
     setSelectedOption(null);
+    if (phase.enigmaType === "drag-order") {
+      const baseItems = Array.isArray(phase.options)
+        ? phase.options
+        : Array.isArray(phase.correctAnswer)
+          ? phase.correctAnswer
+          : [];
+      setDragOrder([...baseItems].sort(() => Math.random() - 0.5));
+    } else {
+      setDragOrder([]);
+    }
     setShowHint(false);
     setShowTutor(false);
     setShowExplanation(false);
@@ -113,10 +125,7 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
         ? normalize(answer)
         : phase.enigmaType === "multiple-choice"
           ? selectedOption
-          : answer
-              .split(",")
-              .map((item) => normalize(item))
-              .filter(Boolean);
+          : dragOrder;
 
     if (userAnswer === null || userAnswer === "" || (Array.isArray(userAnswer) && userAnswer.length === 0)) {
       setFeedback("Preencha a resposta antes de verificar.");
@@ -143,7 +152,7 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
 
     setIsShaking(true);
     setTimeout(() => setIsShaking(false), 500);
-  }, [answer, attempts, normalize, onValidate, phase, selectedOption]);
+  }, [answer, attempts, dragOrder, normalize, onValidate, phase, selectedOption]);
 
   return (
     <>
@@ -223,14 +232,7 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
           )}
 
           {phase.enigmaType === "drag-order" && (
-            <input
-              type="text"
-              value={answer}
-              onChange={(event) => setAnswer(event.target.value)}
-              onKeyDown={(event) => event.key === "Enter" && checkAnswer()}
-              placeholder="Digite a ordem separada por virgula..."
-              className="w-full bg-input border border-primary/30 rounded-md px-4 py-3 text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:border-primary"
-            />
+            <DragOrder items={(phase.correctAnswer as string[]) || []} order={dragOrder} onReorder={setDragOrder} />
           )}
 
           {!showExplanation && (
