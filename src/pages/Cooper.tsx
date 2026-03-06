@@ -96,7 +96,15 @@ const Cooper = () => {
 
   const startRoom = async () => {
     if (!room || !playerId) return;
-    setRoom(await api.startCooperRoom(room.code, playerId));
+    const startedRoom = await api.startCooperRoom(room.code, playerId);
+    setRoom(startedRoom);
+    try {
+      const state = await api.getCooperPlayerView(startedRoom.code, playerId);
+      setViewState(state.view);
+      setRoom(state.room);
+    } catch {
+      // fallback to polling
+    }
   };
 
   const clearStepState = () => {
@@ -141,7 +149,16 @@ const Cooper = () => {
       const result = await api.submitCooperAction(room.code, playerId, payload);
       setRoom(result.room);
       setFeedback(result.result.feedback);
-      if (result.result.correct) clearStepState();
+      if (result.result.correct) {
+        clearStepState();
+      }
+      try {
+        const state = await api.getCooperPlayerView(room.code, playerId);
+        setRoom(state.room);
+        setViewState(state.view);
+      } catch {
+        // fallback to polling
+      }
     } catch (err) {
       setFeedback(parseError(err));
     }
