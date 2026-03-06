@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Phase } from "@/data/phases";
 
 interface OsiVisualizationProps {
@@ -5,29 +6,16 @@ interface OsiVisualizationProps {
   completedLayers: number;
 }
 
-const flowLayers = [
-  "Aplicacao",
-  "Apresentacao",
-  "Sessao",
-  "Transporte",
-  "Rede",
-  "Enlace",
-  "Fisica",
-];
-
-const encapsulation = [
-  "[DATA]",
-  "[TLS/FORMAT | DATA]",
-  "[SESSION | TLS/FORMAT | DATA]",
-  "[TCP HEADER | SESSION | TLS/FORMAT | DATA]",
-  "[IP HEADER | TCP HEADER | SESSION | TLS/FORMAT | DATA]",
-  "[ETH HEADER | IP HEADER | TCP HEADER | SESSION | TLS/FORMAT | DATA | FCS]",
-];
+const flowLayers = ["Aplicacao", "Apresentacao", "Sessao", "Transporte", "Rede", "Enlace", "Fisica"];
 
 const OsiVisualization = ({ phase, completedLayers }: OsiVisualizationProps) => {
-  const activeIndex = flowLayers.findIndex(
-    (layer) => layer.toLowerCase() === phase.name.toLowerCase()
-  );
+  const activeIndex = flowLayers.findIndex((layer) => layer.toLowerCase() === phase.name.toLowerCase());
+
+  const requiredPieces = useMemo(() => {
+    if (phase.layer <= 2) return ["DATA"];
+    if (phase.layer <= 3) return ["DATA", "TCP HEADER", "IP HEADER"];
+    return ["DATA", "TCP HEADER", "IP HEADER", "ETH HEADER", "FCS"];
+  }, [phase.layer]);
 
   return (
     <section className="bg-card border border-primary/20 rounded-lg p-5 border-glow-green">
@@ -59,20 +47,15 @@ const OsiVisualization = ({ phase, completedLayers }: OsiVisualizationProps) => 
         </div>
 
         <div className="bg-muted/40 border border-primary/10 rounded-md p-3">
-          <p className="text-xs text-warning mb-2">Encapsulamento</p>
-          <div className="space-y-2">
-            {encapsulation.slice(0, Math.max(1, phase.layer - 1)).map((line, idx) => (
-              <div
-                key={`${line}-${idx}`}
-                className="text-[11px] md:text-xs font-mono border border-primary/20 rounded px-2 py-1 bg-background/60"
-              >
-                {line}
+          <p className="text-xs text-warning mb-2">Encapsulamento na camada atual</p>
+          <div className="space-y-1.5">
+            {requiredPieces.map((piece) => (
+              <div key={piece} className="text-xs font-mono border border-primary/20 rounded px-2 py-1 bg-background/60">
+                {piece}
               </div>
             ))}
           </div>
-          <p className="text-[11px] text-muted-foreground mt-3">
-            Camadas restauradas: {completedLayers}/7
-          </p>
+          <p className="text-[11px] text-muted-foreground mt-3">Camadas restauradas: {completedLayers}/7</p>
         </div>
       </div>
 
