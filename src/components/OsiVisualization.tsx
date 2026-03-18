@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Phase } from "@/data/phases";
+import type { Phase } from "@/lib/api";
 
 interface OsiVisualizationProps {
   phase: Phase;

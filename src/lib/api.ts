@@ -1,6 +1,24 @@
-import type { Phase } from "@/data/phases";
-
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:3000/api";
+
+export interface Phase {
+  layer: number;
+  name: string;
+  icon: string;
+  badgeColor: string;
+  protocols: string;
+  narrative: string;
+  enigmaType: "text" | "multiple-choice" | "drag-order";
+  enigmaDisplay?: string;
+  instruction: string;
+  options?: string[];
+  hint: string;
+  explanation: string;
+  wrongFeedback: string;
+  networkMessage: string;
+  dynamicFlow?: string[];
+  referenceImage?: string;
+  referenceImageAlt?: string;
+}
 
 export interface ApiValidateResult {
   correct: boolean;
@@ -16,6 +34,14 @@ export interface ApiValidateResult {
   };
   stars?: number;
   xpEarned?: number;
+}
+
+export interface FinalMissionView {
+  title: string;
+  symptom: string;
+  objective: string;
+  options: string[];
+  commandOutputs: Record<string, string>;
 }
 
 export interface CompetitionRoomView {
@@ -199,6 +225,20 @@ export const api = {
       body: JSON.stringify({ layer, answer }),
     });
     return handleJson<ApiValidateResult>(res);
+  },
+
+  async getFinalMission(): Promise<FinalMissionView> {
+    const res = await fetch(`${API_BASE}/game/final-mission`);
+    return handleJson<FinalMissionView>(res);
+  },
+
+  async validateFinalMission(selectedIndex: number): Promise<{ correct: boolean; feedback: string }> {
+    const res = await fetch(`${API_BASE}/game/final-mission/validate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ selectedIndex }),
+    });
+    return handleJson<{ correct: boolean; feedback: string }>(res);
   },
 
   async listRooms(): Promise<CompetitionRoomView[]> {

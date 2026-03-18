@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
-import { Phase } from "@/data/phases";
 import DragOrder from "@/components/DragOrder";
-import type { ApiValidateResult } from "@/lib/api";
+import type { ApiValidateResult, Phase } from "@/lib/api";
 
 interface PhaseCardProps {
   phase: Phase;
@@ -72,11 +71,7 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
     setAnswer("");
     setSelectedOption(null);
     if (phase.enigmaType === "drag-order") {
-      const baseItems = Array.isArray(phase.options)
-        ? phase.options
-        : Array.isArray(phase.correctAnswer)
-          ? phase.correctAnswer
-          : [];
+      const baseItems = Array.isArray(phase.options) ? phase.options : [];
       setDragOrder([...baseItems].sort(() => Math.random() - 0.5));
     } else {
       setDragOrder([]);
@@ -232,7 +227,7 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
           )}
 
           {phase.enigmaType === "drag-order" && (
-            <DragOrder items={(phase.correctAnswer as string[]) || []} order={dragOrder} onReorder={setDragOrder} />
+            <DragOrder items={phase.options || []} order={dragOrder} onReorder={setDragOrder} />
           )}
 
           {!showExplanation && (

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { phases } from "@/data/phases";
+import type { Phase } from "@/lib/api";
 
 interface FinalScreenProps {
+  phases: Phase[];
   totalTime: number;
   onRestart: () => void;
   xp: number;
@@ -34,7 +35,7 @@ const formatSeconds = (total: number) => {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 };
 
-const FinalScreen = ({ totalTime, onRestart, xp, accuracy, starsByLayer, layerStats, competition }: FinalScreenProps) => {
+const FinalScreen = ({ phases, totalTime, onRestart, xp, accuracy, starsByLayer, layerStats, competition }: FinalScreenProps) => {
   const [visibleChars, setVisibleChars] = useState(0);
   const message = "SISTEMA RESTAURADO COM SUCESSO";
 

@@ -1,23 +1,24 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { phases } from "@/data/phases";
 import GameHeader from "@/components/GameHeader";
 import StartScreen from "@/components/StartScreen";
 import PhaseCard from "@/components/PhaseCard";
 import FinalScreen from "@/components/FinalScreen";
 import OsiVisualization from "@/components/OsiVisualization";
 import FinalMission from "@/components/FinalMission";
-import { api, type ApiValidateResult } from "@/lib/api";
+import { api, type ApiValidateResult, type Phase } from "@/lib/api";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 export type GameState = "start" | "playing" | "final-mission" | "finished";
 
-const initialStars = Array.from({ length: phases.length }).map(() => 0);
-const initialLayerStats = Array.from({ length: phases.length }).map(() => ({
-  attempts: 0,
-  timeSpentSeconds: 0,
-  stars: 0,
-  xp: 0,
-}));
+const buildInitialStars = (count: number) => Array.from({ length: count }).map(() => 0);
+
+const buildInitialLayerStats = (count: number) =>
+  Array.from({ length: count }).map(() => ({
+    attempts: 0,
+    timeSpentSeconds: 0,
+    stars: 0,
+    xp: 0,
+  }));
 
 const starsFromAttempts = (attempts: number) => {
   if (attempts <= 1) return 3;
@@ -32,9 +33,10 @@ const Index = () => {
   const competitionPlayerId = searchParams.get("player") || "";
   const isCompetitionMode = Boolean(competitionRoomCode && competitionPlayerId);
 
-  const [phasesData, setPhasesData] = useState(phases);
+  const [phasesData, setPhasesData] = useState<Phase[]>([]);
   const [apiSessionId, setApiSessionId] = useState<string | null>(null);
   const [loadingPhases, setLoadingPhases] = useState(true);
+  const [loadingError, setLoadingError] = useState("");
   const [gameState, setGameState] = useState<GameState>("start");
   const [currentPhase, setCurrentPhase] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30 * 60);
@@ -44,8 +46,10 @@ const Index = () => {
   const [xp, setXp] = useState(0);
   const [wrongAttempts, setWrongAttempts] = useState(0);
   const [correctAttempts, setCorrectAttempts] = useState(0);
-  const [starsByLayer, setStarsByLayer] = useState<number[]>(initialStars);
-  const [layerStats, setLayerStats] = useState(initialLayerStats);
+  const [starsByLayer, setStarsByLayer] = useState<number[]>([]);
+  const [layerStats, setLayerStats] = useState<
+    { attempts: number; timeSpentSeconds: number; stars: number; xp: number }[]
+  >([]);
   const [competitionRoomName, setCompetitionRoomName] = useState("");
   const [competitionRoomStatus, setCompetitionRoomStatus] = useState<"waiting" | "running" | "finished" | null>(null);
   const [competitionRanking, setCompetitionRanking] = useState<
@@ -67,18 +71,13 @@ const Index = () => {
       try {
         const remote = await api.getPhases();
         if (!active) return;
-        if (remote.length > 0) {
-          const merged = remote.map((remotePhase) => {
-            const fallback = phases.find((p) => p.layer === remotePhase.layer);
-            return {
-              ...fallback,
-              ...remotePhase,
-            };
-          });
-          setPhasesData(merged as typeof phases);
-        }
+        setPhasesData(remote);
+        setStarsByLayer(buildInitialStars(remote.length));
+        setLayerStats(buildInitialLayerStats(remote.length));
+        setLoadingError("");
       } catch {
-        // fallback local phases
+        if (!active) return;
+        setLoadingError("Falha ao carregar as fases da OSI-Api.");
       } finally {
         if (active) setLoadingPhases(false);
       }
@@ -136,14 +135,14 @@ const Index = () => {
 
         if (room.status === "running") {
           setGameState("playing");
-          setCurrentPhase(Math.min(phases.length - 1, me?.solvedLayers ?? 0));
+          setCurrentPhase(Math.min(Math.max(phasesData.length - 1, 0), me?.solvedLayers ?? 0));
           if (!startTime) {
             setStartTime(Date.now());
             setTimeLeft(30 * 60);
           }
         }
 
-        if (room.status === "finished" || (me?.solvedLayers ?? 0) >= phases.length) {
+        if (room.status === "finished" || (me?.solvedLayers ?? 0) >= phasesData.length) {
           finalizeGame(me?.elapsedSeconds ?? 0);
         }
       } catch {
@@ -161,27 +160,39 @@ const Index = () => {
     competitionRoomCode,
     finalizeGame,
     isCompetitionMode,
+    phasesData.length,
     startTime,
   ]);
 
-  const handleStart = useCallback(async () => {
-    if (isCompetitionMode) return;
-    try {
-      const session = await api.startSession("player");
-      setApiSessionId(session.sessionId);
-    } catch {
-      setApiSessionId(null);
-    }
-    setGameState("playing");
-    setStartTime(Date.now());
-    setTimeLeft(30 * 60);
+  const resetRunState = useCallback(() => {
     setCurrentPhase(0);
+    setTimeLeft(30 * 60);
+    setStartTime(null);
+    setTotalTime(0);
     setXp(0);
     setWrongAttempts(0);
     setCorrectAttempts(0);
-    setStarsByLayer(initialStars);
-    setLayerStats(initialLayerStats);
-  }, [isCompetitionMode]);
+    setStarsByLayer(buildInitialStars(phasesData.length));
+    setLayerStats(buildInitialLayerStats(phasesData.length));
+  }, [phasesData.length]);
+
+  const handleStart = useCallback(async () => {
+    if (isCompetitionMode) return;
+    if (!phasesData.length) {
+      setLoadingError("As fases nao foram carregadas da API.");
+      return;
+    }
+    try {
+      const session = await api.startSession("player");
+      setApiSessionId(session.sessionId);
+    } catch (err) {
+      setLoadingError(`Falha ao iniciar sessao: ${err instanceof Error ? err.message : "erro desconhecido"}`);
+      return;
+    }
+    resetRunState();
+    setGameState("playing");
+    setStartTime(Date.now());
+  }, [isCompetitionMode, phasesData.length, resetRunState]);
 
   const handlePhaseComplete = useCallback(
     (attempts: number, timeSpentSeconds: number) => {
@@ -219,7 +230,7 @@ const Index = () => {
         setGameState("final-mission");
       }
     },
-    [currentPhase, finalizeGame, isCompetitionMode, phasesData.length]
+    [currentPhase, isCompetitionMode, phasesData.length]
   );
 
   const handleMissionSolved = useCallback(
@@ -239,17 +250,10 @@ const Index = () => {
       navigate("/competition");
       return;
     }
+    setApiSessionId(null);
     setGameState("start");
-    setCurrentPhase(0);
-    setTimeLeft(30 * 60);
-    setStartTime(null);
-    setTotalTime(0);
-    setXp(0);
-    setWrongAttempts(0);
-    setCorrectAttempts(0);
-    setStarsByLayer(initialStars);
-    setLayerStats(initialLayerStats);
-  }, [isCompetitionMode, navigate]);
+    resetRunState();
+  }, [isCompetitionMode, navigate, resetRunState]);
 
   const accuracy = useMemo(() => {
     const total = correctAttempts + wrongAttempts;
@@ -259,36 +263,11 @@ const Index = () => {
 
   const totalStars = useMemo(() => starsByLayer.reduce((sum, value) => sum + value, 0), [starsByLayer]);
 
-  useEffect(() => {
-    if (gameState !== "finished" || !startTime) return;
-    const sessionId = `${startTime}-${totalTime}`;
-    try {
-      const markerKey = "osi_last_saved_session";
-      if (localStorage.getItem(markerKey) === sessionId) return;
-      const raw = localStorage.getItem("osi_sessions");
-      const sessions = raw ? JSON.parse(raw) : [];
-      const nextSession = {
-        sessionId,
-        createdAt: Date.now(),
-        totalTime,
-        xp,
-        accuracy,
-        starsByLayer,
-        layerStats,
-      };
-      const updated = [...sessions, nextSession].slice(-40);
-      localStorage.setItem("osi_sessions", JSON.stringify(updated));
-      localStorage.setItem(markerKey, sessionId);
-    } catch {
-      // no-op for environments without storage
-    }
-  }, [accuracy, gameState, layerStats, startTime, starsByLayer, totalTime, xp]);
-
   return (
     <div className="min-h-screen bg-background relative">
       <div className="fixed inset-0 scanline z-50 pointer-events-none" />
 
-      {gameState !== "start" && (
+      {gameState !== "start" && phasesData.length > 0 && (
         <GameHeader
           timeLeft={timeLeft}
           currentPhase={currentPhase}
@@ -314,7 +293,13 @@ const Index = () => {
           </div>
         )}
 
-        {gameState === "playing" && !loadingPhases && (
+        {!loadingPhases && loadingError && (
+          <div className="container max-w-3xl mx-auto px-4 text-sm text-destructive">
+            {loadingError}
+          </div>
+        )}
+
+        {gameState === "playing" && !loadingPhases && phasesData.length > 0 && (
           <div className="container max-w-6xl mx-auto px-4">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
               <div className="order-1 min-w-0">
@@ -340,7 +325,9 @@ const Index = () => {
                       setCorrectAttempts(me?.solvedLayers ?? 0);
                       return response.result;
                     }
-                    if (!apiSessionId) return api.validate(layer, answer);
+                    if (!apiSessionId) {
+                      throw new Error("Sessao individual nao iniciada na API.");
+                    }
                     return api.submitAnswer(apiSessionId, layer, answer);
                   }}
                 />
@@ -374,6 +361,7 @@ const Index = () => {
 
         {gameState === "finished" && (
           <FinalScreen
+            phases={phasesData}
             totalTime={totalTime}
             onRestart={handleRestart}
             xp={xp}
