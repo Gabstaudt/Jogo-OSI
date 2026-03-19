@@ -1,5 +1,10 @@
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:3000/api";
 
+const authHeaders = () => {
+  const token = localStorage.getItem("osi_auth_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 export interface Phase {
   layer: number;
   osiLayer: number;
@@ -19,6 +24,64 @@ export interface Phase {
   dynamicFlow?: string[];
   referenceImage?: string;
   referenceImageAlt?: string;
+}
+
+export type UserRole = "student" | "teacher";
+export type TeacherQuestionType = "text" | "multiple_choice" | "drag_order";
+export type TeacherQuizMode = "individual" | "competitive";
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: AuthUser;
+}
+
+export interface TeacherQuizQuestion {
+  id: string;
+  order: number;
+  title: string;
+  osiLayer: number;
+  type: TeacherQuestionType;
+  narrative: string;
+  instruction: string;
+  options: string[] | null;
+  correctAnswer: string | number | string[];
+  hint: string;
+  mentorTitle: string | null;
+  mentorContent: string | null;
+  explanation: string;
+  wrongFeedback: string;
+  referenceImage: string | null;
+  referenceImageAlt: string | null;
+}
+
+export interface TeacherQuiz {
+  id: string;
+  title: string;
+  description: string | null;
+  isPublished: boolean;
+  createdAt: string;
+  updatedAt: string;
+  questionCount: number;
+  questions: TeacherQuizQuestion[];
+  rooms: { code: string; mode: TeacherQuizMode; status: "waiting" | "running" | "finished" }[];
+}
+
+export interface TeacherQuizRoom {
+  code: string;
+  name: string;
+  mode: TeacherQuizMode;
+  status: "waiting" | "running" | "finished";
+  createdAt: string;
+  startedAt: string | null;
+  quiz: { id: string; title: string };
+  participants: { id: string; name: string; userId: string | null; joinedAt: string }[];
 }
 
 export interface ApiValidateResult {
@@ -196,6 +259,127 @@ const handleJson = async <T>(res: Response): Promise<T> => {
 };
 
 export const api = {
+  getStoredAuth() {
+    const token = localStorage.getItem("osi_auth_token");
+    const rawUser = localStorage.getItem("osi_auth_user");
+    return {
+      token,
+      user: rawUser ? (JSON.parse(rawUser) as AuthUser) : null,
+    };
+  },
+
+  storeAuth(auth: AuthResponse) {
+    localStorage.setItem("osi_auth_token", auth.token);
+    localStorage.setItem("osi_auth_user", JSON.stringify(auth.user));
+  },
+
+  clearAuth() {
+    localStorage.removeItem("osi_auth_token");
+    localStorage.removeItem("osi_auth_user");
+  },
+
+  async register(payload: {
+    name: string;
+    email: string;
+    password: string;
+    role: UserRole;
+  }): Promise<AuthResponse> {
+    const res = await fetch(`${API_BASE}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return handleJson<AuthResponse>(res);
+  },
+
+  async login(payload: { email: string; password: string }): Promise<AuthResponse> {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return handleJson<AuthResponse>(res);
+  },
+
+  async me(): Promise<AuthUser> {
+    const res = await fetch(`${API_BASE}/auth/me`, {
+      headers: {
+        ...authHeaders(),
+      },
+    });
+    return handleJson<AuthUser>(res);
+  },
+
+  async listTeacherQuizzes(): Promise<TeacherQuiz[]> {
+    const res = await fetch(`${API_BASE}/teacher/quizzes`, {
+      headers: {
+        ...authHeaders(),
+      },
+    });
+    return handleJson<TeacherQuiz[]>(res);
+  },
+
+  async createTeacherQuiz(payload: {
+    title: string;
+    description?: string;
+    isPublished?: boolean;
+    questions: Array<{
+      title: string;
+      osiLayer: number;
+      type: TeacherQuestionType;
+      narrative: string;
+      instruction: string;
+      options?: string[];
+      correctAnswer: string | number | string[];
+      hint: string;
+      mentorTitle?: string;
+      mentorContent?: string;
+      explanation: string;
+      wrongFeedback: string;
+      referenceImage?: string;
+      referenceImageAlt?: string;
+    }>;
+  }): Promise<TeacherQuiz> {
+    const res = await fetch(`${API_BASE}/teacher/quizzes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify(payload),
+    });
+    return handleJson<TeacherQuiz>(res);
+  },
+
+  async createTeacherQuizRoom(
+    quizId: string,
+    payload: { name: string; mode: TeacherQuizMode },
+  ): Promise<TeacherQuizRoom> {
+    const res = await fetch(`${API_BASE}/teacher/quizzes/${quizId}/rooms`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify(payload),
+    });
+    return handleJson<TeacherQuizRoom>(res);
+  },
+
+  async getTeacherQuizRoom(code: string): Promise<TeacherQuizRoom & { quiz: { id: string; title: string; description: string | null; questions: TeacherQuizQuestion[] } }> {
+    const res = await fetch(`${API_BASE}/quiz-rooms/${code}`);
+    return handleJson<TeacherQuizRoom & { quiz: { id: string; title: string; description: string | null; questions: TeacherQuizQuestion[] } }>(res);
+  },
+
+  async joinTeacherQuizRoom(code: string, payload: { name: string; userId?: string }): Promise<TeacherQuizRoom> {
+    const res = await fetch(`${API_BASE}/quiz-rooms/${code}/join`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return handleJson<TeacherQuizRoom>(res);
+  },
+
   async getPhases(): Promise<Phase[]> {
     const res = await fetch(`${API_BASE}/game/phases`);
     return handleJson<Phase[]>(res);

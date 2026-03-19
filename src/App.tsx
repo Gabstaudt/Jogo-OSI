@@ -9,6 +9,8 @@ import Competition from "./pages/Competition";
 import NOC from "./pages/NOC";
 import Cooper from "./pages/Cooper";
 import Home from "./pages/Home";
+import Auth from "./pages/Auth";
+import Portal from "./pages/Portal";
 
 const queryClient = new QueryClient();
 
@@ -20,6 +22,8 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/portal" element={<Portal />} />
           <Route path="/individual" element={<Index />} />
           <Route path="/competition" element={<Competition />} />
           <Route path="/noc" element={<NOC />} />
