@@ -97,7 +97,7 @@ const FinalScreen = ({ phases, totalTime, onRestart, xp, accuracy, starsByLayer,
                   <p className="text-xs text-muted-foreground">#{idx + 1}</p>
                   <p className="text-sm font-semibold text-foreground">{entry.playerName}</p>
                   <p className="text-xs text-foreground/80">
-                    XP {entry.xp} | Camadas {entry.solvedLayers} | Erros {entry.wrongAttempts}
+                    XP {entry.xp} | Fases {entry.solvedLayers} | Erros {entry.wrongAttempts}
                   </p>
                   <p className="text-xs text-secondary">
                     Tempo: {entry.finishedAt ? formatSeconds(entry.elapsedSeconds) : `${formatSeconds(entry.elapsedSeconds)} (em andamento)`}
@@ -110,7 +110,7 @@ const FinalScreen = ({ phases, totalTime, onRestart, xp, accuracy, starsByLayer,
               <div className="grid gap-2">
                 {others.map((entry, idx) => (
                   <div key={entry.playerId} className="rounded-md border border-primary/20 bg-muted/30 px-3 py-2 text-xs">
-                    {idx + 4}. {entry.playerName} - XP {entry.xp} - Camadas {entry.solvedLayers} - Erros{" "}
+                    {idx + 4}. {entry.playerName} - XP {entry.xp} - Fases {entry.solvedLayers} - Erros{" "}
                     {entry.wrongAttempts} - Tempo{" "}
                     {entry.finishedAt ? formatSeconds(entry.elapsedSeconds) : `${formatSeconds(entry.elapsedSeconds)} (em andamento)`}
                   </div>
@@ -127,7 +127,7 @@ const FinalScreen = ({ phases, totalTime, onRestart, xp, accuracy, starsByLayer,
               <div key={phase.layer} className="flex items-center justify-between text-sm border-b border-primary/10 pb-2">
                 <div>
                   <span className="font-semibold" style={{ color: phase.badgeColor }}>
-                    {phase.icon} Camada {phase.layer} - {phase.name}
+                    {phase.icon} Fase {phase.layer} - Camada {phase.osiLayer} - {phase.name}
                   </span>
                   <p className="text-xs text-muted-foreground mt-1">
                     Tentativas: {layerStats[index]?.attempts || 0} | Tempo: {formatSeconds(layerStats[index]?.timeSpentSeconds || 0)} | XP: {layerStats[index]?.xp || 0}
@@ -148,7 +148,7 @@ const FinalScreen = ({ phases, totalTime, onRestart, xp, accuracy, starsByLayer,
               {weakLayers.slice(0, 3).map(({ phase, stat }, idx) => (
                 <div key={`review-${phase.layer}`} className="rounded-md border border-secondary/30 bg-secondary/10 p-3">
                   <p className="text-sm font-semibold" style={{ color: phase.badgeColor }}>
-                    Bloco {idx + 1}: Camada {phase.layer} - {phase.name}
+                    Bloco {idx + 1}: Fase {phase.layer} - Camada {phase.osiLayer} - {phase.name}
                   </p>
                   <p className="text-xs text-foreground/80 mt-1">
                     Indicadores: {stat.attempts} tentativas, {formatSeconds(stat.timeSpentSeconds)}, {stat.stars} estrela(s).
@@ -162,7 +162,7 @@ const FinalScreen = ({ phases, totalTime, onRestart, xp, accuracy, starsByLayer,
         </div>
 
         <p className="text-foreground/80 text-sm mb-8 max-w-xl mx-auto">
-          Missao concluida. Voce restaurou as 7 camadas do modelo OSI e diagnosticou o incidente final da rede.
+          Missao concluida. Voce completou {phases.length} fases em sequencia logica e revisou todas as camadas do modelo OSI.
         </p>
 
         <button onClick={onRestart} className="px-8 py-3 bg-secondary text-secondary-foreground rounded-md font-bold text-sm tracking-wider">

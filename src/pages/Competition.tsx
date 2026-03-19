@@ -168,7 +168,7 @@ const Competition = () => {
               </div>
 
               <p className="text-xs text-muted-foreground mb-3">
-                Status: {activeRoom.status} | Rodada (camada): {activeRoom.currentLayer}
+                Status: {activeRoom.status} | Fase atual: {activeRoom.currentLayer}
               </p>
 
               {isHost && activeRoom.status === "waiting" && (

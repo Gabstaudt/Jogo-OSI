@@ -4,6 +4,7 @@ import type { ApiValidateResult, Phase } from "@/lib/api";
 
 interface PhaseCardProps {
   phase: Phase;
+  isLastPhase: boolean;
   onComplete: (attempts: number, timeSpentSeconds: number) => void;
   onValidate: (layer: number, answer: unknown) => Promise<ApiValidateResult>;
 }
@@ -48,7 +49,7 @@ const tutorByLayer: Record<number, { goal: string; realExample: string; commonMi
   },
 };
 
-const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
+const PhaseCard = ({ phase, isLastPhase, onComplete, onValidate }: PhaseCardProps) => {
   const [answer, setAnswer] = useState("");
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [dragOrder, setDragOrder] = useState<string[]>([]);
@@ -158,7 +159,7 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
               className="px-3 py-1 rounded-full text-xs font-bold tracking-wider"
               style={{ backgroundColor: `${phase.badgeColor}22`, color: phase.badgeColor, border: `1px solid ${phase.badgeColor}44` }}
             >
-              {phase.icon} CAMADA {phase.layer} - {phase.name.toUpperCase()}
+              {phase.icon} FASE {phase.layer} - CAMADA {phase.osiLayer} - {phase.name.toUpperCase()}
             </span>
             <p className="text-muted-foreground text-xs tracking-wide mt-2">Protocolos: {phase.protocols}</p>
           </div>
@@ -184,9 +185,9 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
             </div>
             {showTutor && (
               <div className="grid gap-2 text-xs md:text-sm">
-                <p><span className="text-secondary font-semibold">Conceito:</span> {tutorByLayer[phase.layer]?.goal}</p>
-                <p><span className="text-secondary font-semibold">Exemplo real:</span> {tutorByLayer[phase.layer]?.realExample}</p>
-                <p><span className="text-secondary font-semibold">Erro comum:</span> {tutorByLayer[phase.layer]?.commonMistake}</p>
+                <p><span className="text-secondary font-semibold">Conceito:</span> {tutorByLayer[phase.osiLayer]?.goal}</p>
+                <p><span className="text-secondary font-semibold">Exemplo real:</span> {tutorByLayer[phase.osiLayer]?.realExample}</p>
+                <p><span className="text-secondary font-semibold">Erro comum:</span> {tutorByLayer[phase.osiLayer]?.commonMistake}</p>
               </div>
             )}
           </div>
@@ -268,7 +269,7 @@ const PhaseCard = ({ phase, onComplete, onValidate }: PhaseCardProps) => {
               }
               className="mt-4 px-6 py-2.5 bg-secondary text-secondary-foreground rounded-md font-bold text-sm tracking-wider"
             >
-              {phase.layer < 7 ? "PROXIMA CAMADA ->" : "IR PARA MISSAO FINAL ->"}
+              {isLastPhase ? "IR PARA MISSAO FINAL ->" : "PROXIMA FASE ->"}
             </button>
           )}
         </div>

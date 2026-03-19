@@ -271,6 +271,7 @@ const Index = () => {
         <GameHeader
           timeLeft={timeLeft}
           currentPhase={currentPhase}
+          totalPhases={phasesData.length}
           gameState={gameState}
           xp={xp}
           accuracy={accuracy}
@@ -279,7 +280,7 @@ const Index = () => {
       )}
 
       <main className={`${gameState !== "start" ? "pt-32" : ""} pb-12`}>
-        {gameState === "start" && !isCompetitionMode && <StartScreen onStart={handleStart} />}
+        {gameState === "start" && !isCompetitionMode && <StartScreen onStart={handleStart} totalPhases={phasesData.length} />}
 
         {isCompetitionMode && gameState === "start" && (
           <div className="container max-w-3xl mx-auto px-4 text-sm text-muted-foreground">
@@ -306,6 +307,7 @@ const Index = () => {
                 <PhaseCard
                   key={`${currentPhase}-${competitionPlayerSolvedLayers}`}
                   phase={phasesData[currentPhase]}
+                  isLastPhase={currentPhase === phasesData.length - 1}
                   onComplete={handlePhaseComplete}
                   onValidate={async (layer: number, answer: unknown): Promise<ApiValidateResult> => {
                     if (isCompetitionMode) {
@@ -333,7 +335,7 @@ const Index = () => {
                 />
               </div>
               <div className="order-2 min-w-0">
-                <OsiVisualization phase={phasesData[currentPhase]} completedLayers={currentPhase} />
+                <OsiVisualization phase={phasesData[currentPhase]} completedLayers={currentPhase} totalPhases={phasesData.length} />
                 {isCompetitionMode && (
                   <div className="mt-4 bg-card border border-secondary/20 rounded-lg p-4">
                     <p className="text-xs text-secondary font-semibold tracking-widest mb-2">
@@ -342,7 +344,7 @@ const Index = () => {
                     <div className="grid gap-2">
                       {competitionRanking.map((entry, idx) => (
                         <div key={entry.playerId} className="p-2 rounded border border-primary/20 bg-muted/30 text-xs">
-                          {idx + 1}. {entry.playerName} - XP {entry.xp} - Camadas {entry.solvedLayers} - Erros{" "}
+                          {idx + 1}. {entry.playerName} - XP {entry.xp} - Fases {entry.solvedLayers} - Erros{" "}
                           {entry.wrongAttempts}
                         </div>
                       ))}

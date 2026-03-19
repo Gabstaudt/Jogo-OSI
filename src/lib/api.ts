@@ -2,6 +2,7 @@ const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http:/
 
 export interface Phase {
   layer: number;
+  osiLayer: number;
   name: string;
   icon: string;
   badgeColor: string;

@@ -4,24 +4,25 @@ import type { Phase } from "@/lib/api";
 interface OsiVisualizationProps {
   phase: Phase;
   completedLayers: number;
+  totalPhases: number;
 }
 
 const flowLayers = ["Aplicacao", "Apresentacao", "Sessao", "Transporte", "Rede", "Enlace", "Fisica"];
 
-const OsiVisualization = ({ phase, completedLayers }: OsiVisualizationProps) => {
+const OsiVisualization = ({ phase, completedLayers, totalPhases }: OsiVisualizationProps) => {
   const activeIndex = flowLayers.findIndex((layer) => layer.toLowerCase() === phase.name.toLowerCase());
 
   const requiredPieces = useMemo(() => {
-    if (phase.layer <= 2) return ["DATA"];
-    if (phase.layer <= 3) return ["DATA", "TCP HEADER", "IP HEADER"];
+    if (phase.osiLayer <= 2) return ["DATA"];
+    if (phase.osiLayer <= 3) return ["DATA", "TCP HEADER", "IP HEADER"];
     return ["DATA", "TCP HEADER", "IP HEADER", "ETH HEADER", "FCS"];
-  }, [phase.layer]);
+  }, [phase.osiLayer]);
 
   return (
     <section className="bg-card border border-primary/20 rounded-lg p-5 border-glow-green">
       <div className="flex items-center justify-between gap-3 mb-4">
         <h3 className="text-sm font-bold tracking-wider text-secondary">VISUALIZACAO OSI</h3>
-        <span className="text-xs text-muted-foreground">Camada ativa: {phase.layer}</span>
+        <span className="text-xs text-muted-foreground">Camada ativa: {phase.osiLayer} - {phase.name}</span>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
@@ -55,7 +56,7 @@ const OsiVisualization = ({ phase, completedLayers }: OsiVisualizationProps) => 
               </div>
             ))}
           </div>
-          <p className="text-[11px] text-muted-foreground mt-3">Camadas restauradas: {completedLayers}/7</p>
+          <p className="text-[11px] text-muted-foreground mt-3">Fases restauradas: {completedLayers}/{totalPhases}</p>
         </div>
       </div>
 
@@ -64,7 +65,7 @@ const OsiVisualization = ({ phase, completedLayers }: OsiVisualizationProps) => 
         <p className="text-sm text-foreground/85">{phase.networkMessage}</p>
       </div>
 
-      {phase.layer === 4 && phase.dynamicFlow && (
+      {phase.osiLayer === 4 && phase.dynamicFlow && (
         <div className="mt-4 p-3 rounded-md border border-primary/30 bg-primary/5">
           <p className="text-xs text-primary font-semibold mb-2">Three-Way Handshake (visual)</p>
           <div className="grid gap-2">

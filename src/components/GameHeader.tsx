@@ -3,17 +3,18 @@ import { GameState } from "@/pages/Index";
 interface GameHeaderProps {
   timeLeft: number;
   currentPhase: number;
+  totalPhases: number;
   gameState: GameState;
   xp: number;
   accuracy: number;
   totalStars: number;
 }
 
-const GameHeader = ({ timeLeft, currentPhase, gameState, xp, accuracy, totalStars }: GameHeaderProps) => {
+const GameHeader = ({ timeLeft, currentPhase, totalPhases, gameState, xp, accuracy, totalStars }: GameHeaderProps) => {
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
   const isLow = timeLeft < 5 * 60;
-  const progress = gameState === "finished" ? 100 : ((currentPhase + 1) / 7) * 100;
+  const progress = gameState === "finished" ? 100 : ((currentPhase + 1) / Math.max(totalPhases, 1)) * 100;
 
   const layerColors = ["#888888", "#E17055", "#FDCB6E", "#6C63FF", "#00B894", "#E84393", "#FF6B35"];
 
@@ -35,7 +36,7 @@ const GameHeader = ({ timeLeft, currentPhase, gameState, xp, accuracy, totalStar
             {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
           </div>
 
-          <div className="text-xs md:text-sm text-secondary font-semibold">CAMADA {Math.min(currentPhase + 1, 7)}/7</div>
+          <div className="text-xs md:text-sm text-secondary font-semibold">FASE {Math.min(currentPhase + 1, totalPhases)}/{totalPhases}</div>
         </div>
 
         <div className="flex items-center gap-3 text-xs md:text-sm">
@@ -50,7 +51,7 @@ const GameHeader = ({ timeLeft, currentPhase, gameState, xp, accuracy, totalStar
           className="h-full transition-all duration-700 ease-out"
           style={{
             width: `${progress}%`,
-            background: `linear-gradient(90deg, ${layerColors.slice(0, Math.min(currentPhase + 1, 7)).join(", ")})`,
+            background: `linear-gradient(90deg, ${layerColors.slice(0, Math.min(currentPhase + 1, layerColors.length)).join(", ")})`,
           }}
         />
       </div>

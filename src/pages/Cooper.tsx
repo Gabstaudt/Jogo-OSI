@@ -247,7 +247,20 @@ const Cooper = () => {
                   ))}
                 </div>
 
-                {["restart-dns", "connect-cable", "send-ack", "change-route", "apply-rot13", "restart-http", "reduce-traffic"].includes(viewState.mission.stepId) && (
+                {[
+                  "restart-dns",
+                  "connect-cable",
+                  "send-ack",
+                  "change-route",
+                  "apply-rot13",
+                  "restart-http",
+                  "reduce-traffic",
+                  "restart-session",
+                  "select-fiber-link",
+                  "clear-arp-cache",
+                  "configure-internal-dns",
+                  "switch-to-udp",
+                ].includes(viewState.mission.stepId) && (
                   <div className="grid gap-2 mb-3">
                     {(
                       viewState.mission.stepId === "restart-dns"
@@ -262,7 +275,17 @@ const Cooper = () => {
                                 ? ["Decode Base64", "Apply ROT13", "Decrypt AES"]
                                 : viewState.mission.stepId === "restart-http"
                                   ? ["Restart HTTP", "Restart DNS", "Reboot server"]
-                                  : ["Reduce traffic", "Increase buffer", "Limit connections"]
+                                  : viewState.mission.stepId === "restart-session"
+                                    ? ["Restart session", "Reset TCP", "Restart DNS"]
+                                    : viewState.mission.stepId === "select-fiber-link"
+                                      ? ["UTP", "Fibra optica", "Coaxial"]
+                                      : viewState.mission.stepId === "clear-arp-cache"
+                                        ? ["Clear ARP cache", "Restart DNS", "Increase TTL"]
+                                        : viewState.mission.stepId === "configure-internal-dns"
+                                          ? ["10.10.0.53", "8.8.8.8", "127.0.0.1"]
+                                          : viewState.mission.stepId === "switch-to-udp"
+                                            ? ["TCP", "UDP", "ICMP"]
+                                            : ["Reduce traffic", "Increase buffer", "Limit connections"]
                     ).map((action) => (
                       <button key={action} onClick={() => setSelectedAction(action)} className={`text-left px-3 py-2 rounded border text-xs ${selectedAction === action ? "border-secondary bg-secondary/20" : "border-primary/20 bg-background/60"}`}>{action}</button>
                     ))}
